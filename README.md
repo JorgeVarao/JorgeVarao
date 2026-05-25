@@ -35,7 +35,7 @@ Formado em Ciência da Computação.
 
 #### 📫 Contato | Contact
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](SEU_LINK_AQUI)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/ramiro-var%C3%A3o-654628232/)
 
 ---
 
