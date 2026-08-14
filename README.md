@@ -12,7 +12,7 @@ Formado em Ciência da Computação.
 
 #### 🔧 O que eu faço | What I do
 
-- 📊 **Análise & visualização** — Looker Studio, Excel, Google Sheets
+- 📊 **Análise & visualização** — Looker Studio, Excel, Google Sheets , Power BI
 - ⚙️ **Automação** — n8n, Google Apps Script, fluxos de ETL e integração
 - 🤖 **IA aplicada** — agentes de IA, RAG, chatbots para consulta de dados
 - 🏛️ **Dados governamentais** — infraestrutura escolar, controle financeiro de contratos
