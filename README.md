@@ -25,6 +25,7 @@ Formado em Ciência da Computação.
 ![Looker](https://img.shields.io/badge/Looker_Studio-4285F4?logo=looker&logoColor=white)
 ![Google Apps Script](https://img.shields.io/badge/Apps_Script-4285F4?logo=google&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
+![Power BI](https://img.shields.io/badge/Power_BI-F2C811?logo=powerbi&logoColor=black)
 
 #### 📌 Em destaque | Featured
 
