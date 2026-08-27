@@ -40,6 +40,8 @@ a{color:var(--azul)}
 .orgs .g3{font-weight:800;font-size:13px;letter-spacing:-.01em}
 .orgs .brasao{display:block;width:52px;height:auto}
 .orgs .brasao img{display:block;width:52px;height:auto}
+.orgs .lockup{display:flex;align-items:center;gap:16px}
+.orgs .marca-oficial{display:block;height:56px;width:auto;max-width:min(100%,420px)}
 
 /* ---------- estrutura ---------- */
 .app{max-width:1460px;margin:0 auto;padding:24px 26px 56px;display:grid;grid-template-columns:388px minmax(0,1fr);gap:26px;align-items:start}
@@ -180,6 +182,7 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
   .topo-in,.app,.rodape{padding-left:14px;padding-right:14px}
   .orgs{gap:10px}
   .orgs .brasao,.orgs .brasao img{width:40px}
+  .orgs .marca-oficial{height:40px}
   #mapa{height:340px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -205,6 +208,7 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
     </div>
     <div class="orgs">
       <span class="g1">Gerência de Dados<br>de Infraestrutura</span>
+      <span class="lockup" id="lockup">
       <span class="g2">Secretaria da<br>Educação – SEDUC</span>
       <!-- Brasão: para usar a arte oficial, preencha BRASAO_URL no script
            (URL pública ou data:image/png;base64,...) que este SVG é trocado. -->
@@ -231,6 +235,7 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
         </svg>
       </span>
       <span class="g3">Governo do<br>Estado do Piauí</span>
+      </span>
     </div>
   </div>
 </header>
@@ -364,10 +369,23 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
 const DB = <?!= dadosApp() ?>;
 </script>
 <script>
-/* ====== brasão: troque por arte oficial se quiser ====== */
-const BRASAO_URL = '';   // ex.: 'https://.../brasao-pi.png' ou 'data:image/png;base64,...'
-if (BRASAO_URL) document.getElementById('brasao').innerHTML =
-  '<img src="' + BRASAO_URL + '" alt="Brasão do Estado do Piauí">';
+/* ====== marca institucional ======================================
+   MARCA_URL  troca o bloco inteiro (SECRETARIA DA EDUCAÇÃO + brasão + GOVERNO
+              DO ESTADO DO PIAUÍ) por uma única imagem — é o caso da arte
+              oficial em faixa. Aceita URL pública ou 'data:image/png;base64,...'.
+   BRASAO_URL troca só o brasão, mantendo os textos ao lado.
+   Preencha um OU outro; MARCA_URL tem prioridade.                            */
+const MARCA_URL  = '';
+const BRASAO_URL = '';
+
+if (MARCA_URL) {
+  document.getElementById('lockup').innerHTML =
+    '<img class="marca-oficial" src="' + MARCA_URL +
+    '" alt="Secretaria da Educação – SEDUC · Governo do Estado do Piauí">';
+} else if (BRASAO_URL) {
+  document.getElementById('brasao').innerHTML =
+    '<img src="' + BRASAO_URL + '" alt="Brasão do Estado do Piauí">';
+}
 
 /* ====== Plus Code (Open Location Code) — decodificação local, sem API ====== */
 const OA = '23456789CFGHJMPQRVWX';

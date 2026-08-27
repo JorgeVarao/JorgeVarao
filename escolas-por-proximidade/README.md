@@ -72,9 +72,17 @@ Layout institucional: faixa de cores do Governo, cabeçalho com a marca da SEDUC
 painel de filtros à esquerda em cartões (Localização, Situação, Etapa de Ensino,
 Turno) e resultados em cartões à direita, com a “Resposta Pronta” ao lado.
 
-O brasão é um SVG desenhado no próprio arquivo. Para usar a arte oficial, preencha
-a constante `BRASAO_URL` no início do script do `Index.html` — com uma URL pública
-ou um `data:image/png;base64,...` — que o SVG é substituído automaticamente.
+A marca institucional tem dois pontos de troca, no início do script do `Index.html`:
+
+- **`MARCA_URL`** substitui o bloco inteiro (SECRETARIA DA EDUCAÇÃO + brasão +
+  GOVERNO DO ESTADO DO PIAUÍ) por uma única imagem — é o caso da arte oficial em
+  faixa. É esta que você quer na maioria das vezes.
+- **`BRASAO_URL`** substitui só o brasão, mantendo os textos ao lado.
+
+Ambas aceitam URL pública ou `data:image/png;base64,...`. Preencha uma **ou** outra
+(`MARCA_URL` tem prioridade); vazias as duas, fica o brasão em SVG desenhado no
+próprio arquivo. Embutir em base64 é o mais seguro: a página não depende de host
+externo nem de o servidor da imagem estar no ar.
 
 ### 2. Gestor e contato (colunas AN e AM)
 `NOME DO GESTOR` e `CONTATO` agora aparecem:
