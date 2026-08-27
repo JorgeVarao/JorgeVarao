@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Escolas por Proximidade — Teresina | GDI/SEDUC-PI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+:root{
+  --azul:#1351B4; --azul-esc:#0B3B8C; --azul-claro:#EDF3FF;
+  --amarelo:#F2C230; --vermelho:#E02B2B; --verde:#1A8F3C;
+  --fundo:#EEF1F4; --card:#FFFFFF; --borda:#E1E6EC; --borda2:#D3DAE2;
+  --texto:#111A24; --texto2:#5C6A78; --texto3:#8794A2;
+  --corpo:"Inter","Segoe UI",Roboto,system-ui,-apple-system,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Consolas,monospace;
+  --sombra:0 1px 2px rgba(16,24,40,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--fundo);color:var(--texto);font-family:var(--corpo);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+a{color:var(--azul)}
+
+/* ---------- faixa institucional + cabeçalho ---------- */
+.faixa{display:flex;height:6px}
+.faixa i{flex:1}
+.topo{background:#fff;border-bottom:1px solid var(--borda)}
+.topo-in{max-width:1460px;margin:0 auto;padding:16px 26px;display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap}
+.marca{display:flex;align-items:center;gap:12px;min-width:0}
+.marca .pin{width:26px;height:26px;flex:none}
+.marca h1{font-size:clamp(22px,2.6vw,31px);font-weight:800;letter-spacing:-.024em;margin:0;line-height:1.1}
+.marca p{margin:3px 0 0;color:var(--texto2);font-size:14px}
+.orgs{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.orgs span{font-size:10.5px;line-height:1.28;letter-spacing:.02em;text-transform:uppercase;color:var(--texto)}
+.orgs .g1{font-weight:700;text-align:right;font-size:11.5px}
+.orgs .g2{font-weight:600;text-align:center;color:var(--texto2)}
+.orgs .g3{font-weight:800;font-size:13px;letter-spacing:-.01em}
+.orgs .brasao{display:block;width:52px;height:auto}
+.orgs .brasao img{display:block;width:52px;height:auto}
+
+/* ---------- estrutura ---------- */
+.app{max-width:1460px;margin:0 auto;padding:24px 26px 56px;display:grid;grid-template-columns:388px minmax(0,1fr);gap:26px;align-items:start}
+.painel{display:flex;flex-direction:column;gap:18px;position:sticky;top:18px}
+.bloco{background:var(--card);border:1px solid var(--borda);border-radius:14px;padding:20px;box-shadow:var(--sombra)}
+.bloco h2{display:flex;align-items:center;gap:9px;margin:0;font-size:15px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.bloco h2::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--pt,var(--azul));flex:none}
+.bloco .dica{margin:6px 0 14px;color:var(--texto2);font-size:13.5px}
+
+/* ---------- abas de origem ---------- */
+.tabs{display:flex;gap:4px;background:#F4F6F9;border:1px solid var(--borda);border-radius:10px;padding:4px;margin-bottom:14px}
+.tabs button{flex:1;border:none;background:none;padding:7px 6px;border-radius:7px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--texto2);white-space:nowrap;transition:.14s}
+.tabs button:hover{color:var(--azul)}
+.tabs button[aria-selected=true]{background:#fff;color:var(--azul);box-shadow:0 1px 3px rgba(16,24,40,.10)}
+.painel-origem[hidden]{display:none}
+.campo{width:100%;border:1px solid var(--borda2);background:#fff;border-radius:9px;padding:11px 12px;font-size:15px;font-weight:500;outline:none}
+.campo:focus{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180,.14)}
+select.campo{appearance:none;background-image:url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%235C6A78' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:12px;padding-right:32px}
+.ajuda{margin:8px 0 0;font-size:12.5px;color:var(--texto3);line-height:1.45}
+
+/* ---------- raio ---------- */
+.raio{margin-top:16px}
+.raio-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:7px}
+.raio-top label{font-size:14px;font-weight:600}
+.raio-top b{color:var(--azul);font-size:15px;font-weight:700}
+input[type=range]{width:100%;accent-color:var(--azul);margin:0}
+
+/* ---------- interruptores ---------- */
+.sw-linha{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:11px 0}
+.sw-linha + .sw-linha{border-top:1px solid var(--borda)}
+.sw-linha .txt b{display:block;font-size:14.5px;font-weight:600}
+.sw-linha .txt i{display:block;font-size:13px;color:var(--texto3);font-style:italic;margin-top:1px}
+.sw{position:relative;flex:none;width:46px;height:26px;border-radius:999px;border:none;background:#CBD3DC;cursor:pointer;transition:.16s;padding:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.22);transition:.16s}
+.sw[aria-checked=true]{background:var(--verde)}
+.sw[aria-checked=true]::after{transform:translateX(20px)}
+.sw:focus-visible{outline:2px solid var(--azul);outline-offset:2px}
+
+/* ---------- chips ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:9px}
+.chip{border:1px solid var(--borda2);background:#fff;border-radius:9px;padding:8px 15px;font-size:14px;color:var(--texto3);cursor:pointer;transition:.14s;white-space:nowrap}
+.chip:hover{border-color:var(--azul);color:var(--azul)}
+.chip[aria-pressed=true]{border-color:var(--azul);color:var(--azul);background:var(--azul-claro);font-weight:600}
+.limpar{margin-top:12px;border:none;background:none;padding:0;color:var(--texto3);font-size:13px;cursor:pointer;text-decoration:underline}
+.limpar:hover{color:var(--vermelho)}
+
+/* ---------- mapa ---------- */
+#mapa{height:600px;border:1px solid var(--borda);border-radius:14px;background:#fff;overflow:hidden;z-index:0;position:relative;box-shadow:var(--sombra)}
+#mapa svg{display:block;width:100%;height:100%}
+#mapa .pin{cursor:pointer}
+.mapa-nota{font-size:12px;color:var(--texto3);margin:8px 2px 0;line-height:1.45}
+
+/* ---------- placar ---------- */
+.placar{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin:22px 0 16px}
+.placar .num{font-size:32px;font-weight:800;color:var(--azul);line-height:1;letter-spacing:-.03em}
+.placar .txt{font-size:16px;color:var(--texto2)}
+.placar .txt b{color:var(--azul);font-weight:700}
+
+/* ---------- resultados ---------- */
+.resultados{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:26px;align-items:start}
+body.sem-origem .resultados{grid-template-columns:minmax(0,1fr)}
+body.sem-origem .saida-col{display:none}
+ol.lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:16px}
+.rank{font-size:13px;font-weight:700;color:var(--azul);margin-bottom:6px;letter-spacing:.01em}
+.cartao{background:var(--card);border:1px solid var(--borda);border-radius:12px;padding:17px 19px;box-shadow:var(--sombra);transition:.14s}
+li.item:hover .cartao{border-color:var(--borda2);box-shadow:0 3px 10px rgba(16,24,40,.07)}
+li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180,.12)}
+.cartao h3{margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em;line-height:1.25;cursor:pointer}
+.cartao h3:hover{color:var(--azul)}
+.cartao .end{margin:6px 0 0;color:var(--texto2);font-size:14px}
+.gestao{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:11px;padding:9px 12px;border:1px solid var(--borda);background:#F8FAFC;border-radius:9px;font-size:13.5px}
+.gestao .rot{color:var(--texto3);font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.08em}
+.gestao .nome{font-weight:600;color:var(--texto)}
+.gestao a{font-weight:600;text-decoration:none;border-bottom:1px solid rgba(19,81,180,.35)}
+.gestao a:hover{border-bottom-color:var(--azul)}
+.gestao .zap{color:var(--verde);border-bottom-color:rgba(26,143,60,.35)}
+.gestao .zap:hover{border-bottom-color:var(--verde)}
+.gestao.vazia{color:var(--texto3);font-style:italic;background:#FBFCFD}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.tag{font-size:12.5px;border:1px solid var(--borda2);border-radius:8px;padding:4px 11px;color:var(--texto2);background:#fff;white-space:nowrap}
+.tag.inep{border-color:var(--azul);color:var(--azul);font-weight:600}
+.tag.int{border-color:#EBC96B;color:#8A6A12;background:#FEF9EC}
+.tag.off{border-color:#EFC3C3;color:#A33;background:#FDF3F3}
+.acoes{display:flex;align-items:center;gap:10px;margin-top:13px;font-size:14px}
+.acoes a{text-decoration:none;border-bottom:1px solid rgba(19,81,180,.35);font-weight:500}
+.acoes a:hover{border-bottom-color:var(--azul)}
+.acoes s{color:var(--borda2);text-decoration:none}
+.origem{background:var(--card);border:1px solid var(--borda);border-left:4px solid var(--azul);border-radius:12px;padding:15px 18px;margin-bottom:18px;box-shadow:var(--sombra)}
+.origem[hidden]{display:none}
+.origem .rot{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--azul)}
+.origem h3{margin:5px 0 0;font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
+.origem .end{margin:4px 0 0;color:var(--texto2);font-size:13.5px}
+.vazio{background:var(--card);border:1px dashed var(--borda2);border-radius:12px;padding:40px 22px;text-align:center;color:var(--texto2)}
+
+/* ---------- resposta pronta ---------- */
+.saida-col{position:sticky;top:18px}
+.saida-col h2{margin:0 0 10px;font-size:15px;font-weight:700;color:var(--azul)}
+.saida{background:var(--card);border:1px solid var(--borda);border-radius:12px;box-shadow:var(--sombra);overflow:hidden}
+.saida pre{margin:0;padding:16px 17px;font-family:var(--mono);font-size:11.5px;line-height:1.62;white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto;color:var(--texto)}
+.botoes{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--borda)}
+.botoes button{border:none;background:#fff;padding:13px 8px;cursor:pointer;font-weight:600;font-size:14px;color:var(--azul);border-right:1px solid var(--borda);transition:.14s;text-decoration:underline;text-underline-offset:3px}
+.botoes button:last-child{border-right:none}
+.botoes button:hover{background:var(--azul-claro)}
+.botoes button.ok{background:var(--verde);color:#fff;text-decoration:none}
+
+/* ---------- ficha da escola (popup do mapa) ---------- */
+.ficha{font-family:var(--corpo);font-size:13.5px;line-height:1.45;color:var(--texto);display:flex;flex-direction:column;gap:3px}
+.ficha b.t{font-size:15px;font-weight:700;line-height:1.25}
+.ficha .dist{font-weight:700;color:var(--azul);font-size:12.5px}
+.ficha .lin{color:var(--texto2)}
+.ficha .bai{font-weight:600}
+.ficha .box{margin-top:6px;padding:8px 10px;border:1px solid var(--borda);background:#F8FAFC;border-radius:8px;font-size:13px;display:flex;flex-direction:column;gap:2px}
+.ficha .box .rot{color:var(--texto3);font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.08em}
+.ficha .box a{font-weight:600;text-decoration:none;border-bottom:1px solid rgba(19,81,180,.35)}
+.ficha .box .zap{color:var(--verde);border-bottom-color:rgba(26,143,60,.35)}
+.ficha .acs{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+.ficha .acs a{font-size:13px;text-decoration:none;border-bottom:1px solid rgba(19,81,180,.35);font-weight:500}
+.leaflet-popup-content-wrapper.pop,.pop .leaflet-popup-content-wrapper{border-radius:10px;border:1px solid var(--borda2);box-shadow:0 6px 20px rgba(16,24,40,.14)}
+.pop .leaflet-popup-content{margin:13px 15px}
+#fichaSvg{position:absolute;width:268px;background:#fff;border:1px solid var(--borda2);border-radius:10px;padding:13px 15px;z-index:5;box-shadow:0 6px 20px rgba(16,24,40,.14)}
+#fichaSvg[hidden]{display:none}
+#fichaSvg .fecha{position:absolute;top:4px;right:7px;border:none;background:none;font-size:19px;line-height:1;cursor:pointer;color:var(--texto3);padding:2px 5px}
+#fichaSvg .fecha:hover{color:var(--texto)}
+
+/* ---------- rodapé ---------- */
+.rodape{max-width:1460px;margin:0 auto;padding:18px 26px 42px;font-size:12px;color:var(--texto3);line-height:1.65;border-top:1px solid var(--borda)}
+.rodape code{font-family:var(--mono);font-size:11px;background:#fff;padding:1px 5px;border:1px solid var(--borda);border-radius:4px}
+.rodape b{color:var(--texto2)}
+
+@media (max-width:1180px){
+  .app{grid-template-columns:1fr}
+  .painel{position:static}
+  .resultados{grid-template-columns:minmax(0,1fr)}
+  .saida-col{position:static}
+  #mapa{height:440px}
+}
+@media (max-width:620px){
+  .topo-in,.app,.rodape{padding-left:14px;padding-right:14px}
+  .orgs{gap:10px}
+  .orgs .brasao,.orgs .brasao img{width:40px}
+  #mapa{height:340px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="faixa">
+  <i style="background:#1351B4"></i><i style="background:#F2C230"></i><i style="background:#E02B2B"></i><i style="background:#1A8F3C"></i>
+</div>
+
+<header class="topo">
+  <div class="topo-in">
+    <div class="marca">
+      <svg class="pin" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 22.5s7.2-6.4 7.2-11.9A7.2 7.2 0 0 0 4.8 10.6C4.8 16.1 12 22.5 12 22.5Z" fill="#E02B2B"/>
+        <circle cx="12" cy="10.4" r="2.7" fill="#fff"/>
+      </svg>
+      <div>
+        <h1>Escolas por Proximidade</h1>
+        <p>Encontre e ordene unidades da rede pela distância</p>
+      </div>
+    </div>
+    <div class="orgs">
+      <span class="g1">Gerência de Dados<br>de Infraestrutura</span>
+      <span class="g2">Secretaria da<br>Educação – SEDUC</span>
+      <!-- Brasão: para usar a arte oficial, preencha BRASAO_URL no script
+           (URL pública ou data:image/png;base64,...) que este SVG é trocado. -->
+      <span class="brasao" id="brasao" aria-label="Brasão do Estado do Piauí">
+        <svg viewBox="0 0 76 92" role="img" aria-hidden="true">
+          <defs><clipPath id="bp"><ellipse cx="38" cy="38" rx="30" ry="33"/></clipPath></defs>
+          <ellipse cx="38" cy="38" rx="30" ry="33" fill="#DCE9F2"/>
+          <g clip-path="url(#bp)">
+            <rect x="0" y="45" width="76" height="45" fill="#1A8F3C"/>
+            <path d="M0 45 Q19 37 38 44 Q57 51 76 43 L76 49 L0 49Z" fill="#12702E"/>
+            <g stroke="#0E5A25" stroke-width="1.7" fill="none" stroke-linecap="round">
+              <path d="M26 53 C26 46 25 41 24 36"/>
+              <path d="M24 36 C20.5 33.5 17 33.5 14.5 35.5"/><path d="M24 36 C27.5 33.5 31 33.5 33.5 35.5"/>
+              <path d="M24 36 C21.5 31.5 18 29.5 15 29.5"/><path d="M24 36 C26.5 31.5 30 29.5 33 29.5"/>
+              <path d="M51 55 C51 48 52 43 53 38"/>
+              <path d="M53 38 C49.5 35.5 46 35.5 43.5 37.5"/><path d="M53 38 C56.5 35.5 60 35.5 62.5 37.5"/>
+              <path d="M53 38 C50.5 33.5 47 31.5 44 31.5"/><path d="M53 38 C55.5 33.5 59 31.5 62 31.5"/>
+            </g>
+            <path d="M38 12.5 L39.8 17.6 L45.1 17.7 L40.9 20.9 L42.4 26.1 L38 23 L33.6 26.1 L35.2 20.9 L30.9 17.7 L36.2 17.6 Z" fill="#F2C230"/>
+          </g>
+          <ellipse cx="38" cy="38" rx="30" ry="33" fill="none" stroke="#0B3B8C" stroke-width="3"/>
+          <path d="M5 66 Q38 85 71 66 L71 74 Q38 93 5 74 Z" fill="#1351B4"/>
+          <path d="M5 66 Q38 85 71 66" fill="none" stroke="#0B3B8C" stroke-width="1.2"/>
+        </svg>
+      </span>
+      <span class="g3">Governo do<br>Estado do Piauí</span>
+    </div>
+  </div>
+</header>
+
+<main class="app">
+
+  <!-- ============================ PAINEL ============================ -->
+  <aside class="painel">
+
+    <section class="bloco" style="--pt:#1351B4">
+      <h2>Localização</h2>
+      <p class="dica">Escolha como você quer partir</p>
+
+      <div class="tabs" role="tablist">
+        <button role="tab" data-modo="bairro" aria-selected="true">Por Bairro</button>
+        <button role="tab" data-modo="escola" aria-selected="false">Por Escola</button>
+        <button role="tab" data-modo="coord"  aria-selected="false">Por Coordenada</button>
+      </div>
+
+      <div class="painel-origem" data-modo="bairro">
+        <select class="campo" id="selBairro" aria-label="Bairro de partida"></select>
+        <p class="ajuda">O ponto de partida é o centro geométrico das unidades da rede naquele bairro.</p>
+      </div>
+
+      <div class="painel-origem" data-modo="escola" hidden>
+        <input class="campo" id="inpEscola" list="listaEscolas" autocomplete="off"
+               placeholder="Digite o nome da escola" aria-label="Escola de partida">
+        <datalist id="listaEscolas"></datalist>
+        <p class="ajuda">Responde “quais escolas estão a X km da escola Y”. A própria escola de partida fica fora da lista.</p>
+      </div>
+
+      <div class="painel-origem" data-modo="coord" hidden>
+        <input class="campo" id="inpCoord" autocomplete="off"
+               placeholder="-5.0892, -42.8019 · W55P+3W" aria-label="Coordenada ou Plus Code">
+        <p class="ajuda">Aceita “lat, lon”, Plus Code ou um clique em qualquer ponto do mapa.</p>
+      </div>
+
+      <div class="raio">
+        <div class="raio-top">
+          <label for="rngRaio">Raio de busca</label>
+          <b id="lblRaio">3,0km</b>
+        </div>
+        <input type="range" id="rngRaio" min="1" max="60" step="1" value="6" aria-label="Raio de busca em quilômetros">
+      </div>
+    </section>
+
+    <section class="bloco" style="--pt:#1A8F3C">
+      <h2>Situação</h2>
+      <p class="dica">O que deve aparecer no mapa</p>
+      <div class="sw-linha">
+        <span class="txt"><b>Apenas Escolas Ativas</b><i>Oculta unidades desativadas</i></span>
+        <button class="sw" id="fAtivas" role="switch" aria-checked="true" aria-label="Apenas escolas ativas"></button>
+      </div>
+      <div class="sw-linha">
+        <span class="txt"><b>Tempo Integral</b><i>Apenas unidades de tempo integral</i></span>
+        <button class="sw" id="fIntegral" role="switch" aria-checked="false" aria-label="Apenas tempo integral"></button>
+      </div>
+      <div class="sw-linha">
+        <span class="txt"><b>Com gestor cadastrado</b><i>Apenas unidades com contato na base</i></span>
+        <button class="sw" id="fGestor" role="switch" aria-checked="false" aria-label="Apenas com gestor cadastrado"></button>
+      </div>
+    </section>
+
+    <section class="bloco" style="--pt:#F2C230">
+      <h2>Etapa de Ensino</h2>
+      <p class="dica">Escolha a etapa de ensino</p>
+      <div class="chips">
+        <button class="chip et" data-et="Fundamental" aria-pressed="false">Fundamental</button>
+        <button class="chip et" data-et="Médio" aria-pressed="false">Médio</button>
+        <button class="chip et" data-et="EJA" aria-pressed="false">EJA</button>
+        <button class="chip et" data-et="Técnico" aria-pressed="false">Técnico</button>
+      </div>
+    </section>
+
+    <section class="bloco" style="--pt:#E02B2B">
+      <h2>Turno</h2>
+      <p class="dica">Escolha o turno que você quer ver</p>
+      <div class="chips">
+        <button class="chip tu" data-tu="Integral" aria-pressed="false">Integral</button>
+        <button class="chip tu" data-tu="Manhã" aria-pressed="false">Manhã</button>
+        <button class="chip tu" data-tu="Tarde" aria-pressed="false">Tarde</button>
+        <button class="chip tu" data-tu="Noite" aria-pressed="false">Noite</button>
+      </div>
+      <button class="limpar" id="btLimpar">Limpar todos os filtros</button>
+    </section>
+
+  </aside>
+
+  <!-- ========================== CONTEÚDO ========================== -->
+  <section>
+    <div id="mapa"></div>
+    <p class="mapa-nota" id="notaMapa">Clique em qualquer ponto do mapa para recalcular a partir dali. O círculo marca o raio de busca.</p>
+
+    <div class="placar">
+      <span class="num" id="nQtd">—</span>
+      <span class="txt" id="nTxt">selecione um ponto de partida</span>
+    </div>
+
+    <div class="resultados">
+      <div>
+        <div class="origem" id="origemCard" hidden></div>
+        <ol class="lista" id="lista"></ol>
+      </div>
+      <aside class="saida-col">
+        <h2>Resposta Pronta</h2>
+        <div class="saida">
+          <pre id="txtSaida">—</pre>
+          <div class="botoes">
+            <button id="btCopiar">Copiar Texto</button>
+            <button id="btCsv">Baixar CSV</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+</main>
+
+<footer class="rodape">
+  <b>Como as distâncias são calculadas.</b> Cada unidade tem sua coordenada obtida da coluna <code>google PlusCode</code> da base, decodificada localmente — sem consultar nenhuma API. A distância é em <em>linha reta</em> (fórmula de Haversine). Em Teresina isso merece atenção: dois pontos separados pelo Parnaíba ou pelo Poti podem estar a 2 km em linha reta e a 8 km de percurso real, dependendo da ponte. Use a lista como triagem e confirme o trajeto quando a decisão depender disso.<br>
+  <b>Ponto de partida.</b> Por bairro = centro geométrico das unidades da rede naquele bairro. Por escola = a coordenada da própria unidade. Para um endereço específico, cole a coordenada ou clique no mapa.<br>
+  <b>Gestor e contato</b> vêm das colunas <code>NOME DO GESTOR</code> e <code>CONTATO</code> da base — informação de trabalho, para uso interno da rede.<br>
+  Versão <b>v5 · 27/08/2026</b> · Base: <span id="fonteArq">planilha INEP Teresina — GDI/UGERF</span> · <span id="fonteQtd"></span> · Mapa © OpenStreetMap.
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+/* Dados ao vivo da planilha. Em produção (Apps Script) o scriptlet abaixo é
+   substituído pelo JSON de dadosApp(); num teste local, troque a linha por um
+   snapshot estático da mesma estrutura. */
+const DB = <?!= dadosApp() ?>;
+</script>
+<script>
+/* ====== brasão: troque por arte oficial se quiser ====== */
+const BRASAO_URL = '';   // ex.: 'https://.../brasao-pi.png' ou 'data:image/png;base64,...'
+if (BRASAO_URL) document.getElementById('brasao').innerHTML =
+  '<img src="' + BRASAO_URL + '" alt="Brasão do Estado do Piauí">';
+
+/* ====== Plus Code (Open Location Code) — decodificação local, sem API ====== */
+const OA = '23456789CFGHJMPQRVWX';
+const REF = { lat: -5.0892, lng: -42.8019 };           // âncora: centro de Teresina
+
+function olcDecode(code) {
+  code = code.replace(/\+/g, '').replace(/0+$/, '').toUpperCase();
+  let lat = -90, lng = -180, latRes = 400, lngRes = 400, i = 0;
+  while (i < code.length && i < 10) {
+    latRes /= 20; lngRes /= 20;
+    lat += OA.indexOf(code[i]) * latRes;
+    lng += OA.indexOf(code[i + 1]) * lngRes;
+    i += 2;
+  }
+  while (i < code.length) {
+    latRes /= 5; lngRes /= 4;
+    const d = OA.indexOf(code[i]);
+    lat += Math.floor(d / 4) * latRes;
+    lng += (d % 4) * lngRes;
+    i++;
+  }
+  return { lat: lat + latRes / 2, lng: lng + lngRes / 2 };
+}
+function olcEncode(lat, lng, len) {
+  let a = lat + 90, o = lng + 180, res = 20, code = '';
+  for (let i = 0; i < Math.ceil(len / 2); i++) {
+    const la = Math.floor(a / res), lo = Math.floor(o / res);
+    code += OA[la] + OA[lo];
+    a -= la * res; o -= lo * res; res /= 20;
+  }
+  return code.substring(0, len);
+}
+function olcRecuperar(curto) {
+  curto = curto.toUpperCase().trim();
+  const sep = curto.indexOf('+');
+  if (sep < 0) return null;
+  const falta = 8 - sep;
+  if (falta <= 0) return olcDecode(curto);
+  const res = Math.pow(20, 2 - falta / 2), meio = res / 2;
+  const p = olcDecode(olcEncode(REF.lat, REF.lng, falta) + curto);
+  if (REF.lat + meio < p.lat) p.lat -= res; else if (REF.lat - meio > p.lat) p.lat += res;
+  if (REF.lng + meio < p.lng) p.lng -= res; else if (REF.lng - meio > p.lng) p.lng += res;
+  return p;
+}
+
+/* ====== distância e formatação ====== */
+function distKm(a, b, c, d) {
+  const R = 6371, r = Math.PI / 180;
+  const dl = (c - a) * r, dg = (d - b) * r;
+  const h = Math.sin(dl / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dg / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const fmtKm  = k => k < 1 ? Math.round(k * 1000) + ' m' : k.toFixed(1).replace('.', ',') + ' km';
+const fmtKmC = k => k < 1 ? Math.round(k * 1000) + 'm'  : k.toFixed(1).replace('.', ',') + 'km';
+const fmtRaio = () => S.raio.toFixed(1).replace('.', ',') + 'km';
+const esc = t => String(t == null ? '' : t)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const ACR = new Set(['CETI','CEJA','EJA','GRE','SEDUC','IFPI','CMEI','APAE','EPT','CEM','CEF',
+  'CEIP','SESI','SENAI','CSU','CPM','UE','EEM','ETI','UAB','UAPI','II','III','IV','IX','XI','XII','XV','XX','PI']);
+function titulo(s) {
+  return String(s).replace(/\bU\s+E\b/g, 'UE').split(/(\s+)/).map(t => {
+    const nu = t.replace(/[^A-Za-zÀ-Ú]/g, '').toUpperCase();
+    if (ACR.has(nu)) return t.toUpperCase();
+    const b = t.toLowerCase();
+    if (['da','de','do','das','dos','e','em','no','na'].includes(b)) return b;
+    return b.replace(/(^|[\s\-/(.])([a-zà-ú])/g, (m, a, c) => a + c.toUpperCase());
+  }).join('');
+}
+
+/* ====== gestor e contato (colunas AN e AM da base) ====== */
+const soDigitos = t => String(t == null ? '' : t).replace(/\D+/g, '');
+
+function fmtFone(t) {
+  const d = soDigitos(t);
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  if (d.length === 9)  return `${d.slice(0, 5)}-${d.slice(5)}`;
+  if (d.length === 8)  return `${d.slice(0, 4)}-${d.slice(4)}`;
+  return String(t || '').trim();
+}
+/** Nome do gestor limpo: tira vírgula solta no fim e tira o CAIXA ALTA. */
+function nomeGestor(t) {
+  const s = String(t || '').replace(/\s+/g, ' ').replace(/[,;.\s]+$/, '').trim();
+  return s ? titulo(s) : '';
+}
+/** Um contato pode trazer mais de um número; cada um vira link de ligação. */
+function fonesLista(t) {
+  return String(t || '').split(/[;\/|\n]+|\s+e\s+/i).map(x => x.trim()).filter(Boolean);
+}
+function fonesHTML(t) {
+  return fonesLista(t).map(p => {
+    const d = soDigitos(p);
+    if (d.length < 8) return `<span>${esc(p)}</span>`;
+    const href = d.length >= 10 ? '+55' + d : d;
+    const zap = (d.length === 11 && d.charAt(2) === '9')
+      ? ` <a class="zap" href="https://wa.me/55${d}" target="_blank" rel="noopener">WhatsApp</a>` : '';
+    return `<a href="tel:${href}">${esc(fmtFone(p))}</a>${zap}`;
+  }).join(' · ');
+}
+function fonesTexto(t) {
+  return fonesLista(t).map(fmtFone).join(' / ');
+}
+const temGestao = e => !!(String(e.gest || '').trim() || String(e.ct || '').trim());
+
+/* ====== busca por nome / INEP / gestor ====== */
+function chave(t){return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim();}
+function buscarEscola(q){
+  const bruto = String(q || '').trim();
+  const k = chave(bruto);
+  if (!k) return null;
+  const dig = bruto.replace(/\D+/g, '');
+  if (dig.length >= 7) {                                    // veio um INEP
+    const porInep = DB.escolas.find(e => e.inep && e.inep === dig);
+    if (porInep) return porInep;
+  }
+  if (k.length < 4) return null;
+  const exato = DB.escolas.find(e => chave(e.n) === k);
+  if (exato) return exato;
+  const cand = DB.escolas.filter(e => chave(e.n).includes(k));
+  if (cand.length) return cand.sort((a,b)=>chave(a.n).length-chave(b.n).length)[0];
+  const toks = k.split(' ').filter(t=>t.length>2);
+  const pt = DB.escolas.filter(e => toks.length && toks.every(t => chave(e.n).includes(t)));
+  if (pt.length) return pt.sort((a,b)=>chave(a.n).length-chave(b.n).length)[0];
+  const porGestor = DB.escolas.filter(e => e.gest && chave(e.gest).includes(k));
+  return porGestor.length ? porGestor[0] : null;
+}
+
+/* ====== saneamento na entrada ======
+   O Sheets guarda "2022" como a data 01/01/2022. Lido pelo Apps Script isso vira
+   um objeto Date, e a conversão para texto produz "Wed Jan 01 2022 00:00:00
+   GMT-0300 (...)". Aqui ficamos só com o ano, venha o valor como vier. */
+function soAno(v) {
+  if (!v) return '';
+  const m = String(v).match(/\b(19|20)\d{2}\b/);
+  return m ? m[0] : '';
+}
+DB.escolas.forEach(e => { e.ti = soAno(e.ti); e.gest = e.gest || ''; e.ct = e.ct || ''; e.bl = e.bl || e.b; });
+DB.bairros.forEach(b => { b.bl = b.bl || b.b; });
+
+/* ====== estado ====== */
+const S = { lat: null, lon: null, prep: '', rotulo: '', origem: null, modo: 'bairro',
+            raio: 3, ativas: true, integral: false, comGestor: false,
+            et: new Set(), tu: new Set(), res: [], todos: [] };
+
+/* ====== elementos ====== */
+const $ = id => document.getElementById(id);
+const elLista = $('lista'), elQtd = $('nQtd'), elTxt = $('nTxt'), elSaida = $('txtSaida');
+
+/* ====== inicialização ====== */
+const sel = $('selBairro');
+sel.innerHTML = '<option value="">— Escolha um bairro —</option>' +
+  DB.bairros.map(b => `<option value="${esc(b.b)}">${esc(titulo(b.bl))} (${b.n})</option>`).join('');
+$('listaEscolas').innerHTML = DB.escolas.slice()
+  .sort((a, b) => a.n.localeCompare(b.n, 'pt-BR'))
+  .map(e => `<option value="${esc(titulo(e.n))}">`).join('');
+$('fonteQtd').textContent = DB.escolas.length + ' unidades geolocalizadas · ' +
+  DB.escolas.filter(e => e.sit === 'EM ATIVIDADE').length + ' escolas em atividade · ' +
+  DB.escolas.filter(temGestao).length + ' com gestor/contato';
+
+let mapa = null, camadaEsc = null, marcOrig = null, circulo = null;
+if (window.L) {
+  mapa = L.map('mapa', { scrollWheelZoom: false }).setView([REF.lat, REF.lng], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(mapa);
+  camadaEsc = L.layerGroup().addTo(mapa);
+  mapa.on('click', e => definirOrigem(e.latlng.lat, e.latlng.lng, 'do', 'ponto no mapa', false, null));
+  if (window.ResizeObserver) new ResizeObserver(() => mapa.invalidateSize()).observe($('mapa'));
+  // o iframe do Apps Script define a altura depois do load; remede algumas vezes
+  const remedir = () => { mapa.invalidateSize(); desenharMapa(); };
+  window.addEventListener('load', remedir);
+  [400, 1200, 2500].forEach(t => setTimeout(remedir, t));
+} else {
+  $('notaMapa').textContent = 'Sem conexão: mostrando o mapa esquemático desenhado a partir das próprias coordenadas da base. Clique num ponto para destacá-lo na lista.';
+}
+
+/* ====== eventos ====== */
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  S.modo = b.dataset.modo;
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('.painel-origem').forEach(p => p.hidden = p.dataset.modo !== S.modo);
+  const foco = { escola: 'inpEscola', coord: 'inpCoord' }[S.modo];
+  if (foco) $(foco).focus();
+});
+
+sel.onchange = () => {
+  const b = DB.bairros.find(x => x.b === sel.value);
+  if (b) { $('inpCoord').value = ''; $('inpEscola').value = ''; definirOrigem(b.lat, b.lon, 'do bairro', titulo(b.bl), true, null); }
+};
+
+$('inpEscola').addEventListener('change', e => {
+  const v = e.target.value.trim();
+  if (!v) return;
+  const alvo = buscarEscola(v);
+  if (!alvo) { alert('Não encontrei essa escola na base.\n\nDigite parte do nome (ex.: "Firmina Sobreira") ou o código INEP.'); return; }
+  sel.value = ''; $('inpCoord').value = '';
+  e.target.value = titulo(alvo.n);
+  definirOrigem(alvo.lat, alvo.lon, 'da escola', titulo(alvo.n), true, alvo);
+});
+
+$('inpCoord').addEventListener('change', e => {
+  const v = e.target.value.trim();
+  if (!v) return;
+  const m = v.match(/(-?\d+[.,]\d+)\s*[,;\s]\s*(-?\d+[.,]\d+)/);
+  if (m) { sel.value = ''; $('inpEscola').value = ''; return definirOrigem(+m[1].replace(',', '.'), +m[2].replace(',', '.'), 'da', 'coordenada informada', true, null); }
+  const p = olcRecuperar(v.split(/\s/)[0]);
+  if (p && !isNaN(p.lat)) { sel.value = ''; $('inpEscola').value = ''; return definirOrigem(p.lat, p.lng, 'do', 'Plus Code ' + v.split(/\s/)[0].toUpperCase(), true, null); }
+  const alvo = buscarEscola(v);
+  if (alvo) { sel.value = ''; return definirOrigem(alvo.lat, alvo.lon, 'da escola', titulo(alvo.n), true, alvo); }
+  alert('Não reconheci esse ponto.\n\nAceito:\n· coordenada  -5.0892, -42.8019\n· Plus Code   W55P+3W\n· nome de uma escola da base');
+});
+
+$('rngRaio').oninput = e => {
+  S.raio = e.target.value / 2;
+  $('lblRaio').textContent = fmtRaio();
+  calcular();
+};
+function liga(id, campo) {
+  $(id).onclick = () => { S[campo] = !S[campo]; $(id).setAttribute('aria-checked', S[campo]); calcular(); };
+}
+liga('fAtivas', 'ativas'); liga('fIntegral', 'integral'); liga('fGestor', 'comGestor');
+
+document.querySelectorAll('.chip.et').forEach(c => c.onclick = () => {
+  const k = c.dataset.et; S.et.has(k) ? S.et.delete(k) : S.et.add(k);
+  c.setAttribute('aria-pressed', S.et.has(k)); calcular();
+});
+document.querySelectorAll('.chip.tu').forEach(c => c.onclick = () => {
+  const k = c.dataset.tu; S.tu.has(k) ? S.tu.delete(k) : S.tu.add(k);
+  c.setAttribute('aria-pressed', S.tu.has(k)); calcular();
+});
+$('btLimpar').onclick = () => {
+  S.et.clear(); S.tu.clear(); S.integral = false; S.comGestor = false; S.ativas = true;
+  document.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', 'false'));
+  $('fAtivas').setAttribute('aria-checked', 'true');
+  $('fIntegral').setAttribute('aria-checked', 'false');
+  $('fGestor').setAttribute('aria-checked', 'false');
+  calcular();
+};
+
+function definirOrigem(lat, lon, prep, rotulo, mover, escola) {
+  S.lat = lat; S.lon = lon; S.prep = prep; S.rotulo = rotulo; S.origem = escola || null;
+  if (mapa) {
+    if (marcOrig) mapa.removeLayer(marcOrig);
+    marcOrig = L.circleMarker([lat, lon], { radius: 8, color: '#E02B2B', weight: 3, fillColor: '#fff', fillOpacity: 1 })
+      .addTo(mapa).bindTooltip('Partida: ' + rotulo, { direction: 'top' });
+    if (mover) mapa.setView([lat, lon], 13);
+  }
+  calcular();
+}
+
+/* ====== núcleo ====== */
+function passaFiltro(e) {
+  if (S.ativas && e.sit !== 'EM ATIVIDADE') return false;
+  if (S.integral && !e.ti) return false;
+  if (S.comGestor && !temGestao(e)) return false;
+  if (S.et.size && ![...S.et].every(x => e.et.includes(x))) return false;
+  if (S.tu.size && ![...S.tu].some(x => e.tu.includes(x))) return false;
+  return true;
+}
+
+function calcular() {
+  S.todos = DB.escolas.filter(passaFiltro);
+  if (S.lat === null) { S.res = []; return render(); }
+  S.res = DB.escolas
+    .filter(e => e !== S.origem && passaFiltro(e))   // a escola de partida não disputa consigo mesma
+    .map(e => ({ ...e, d: distKm(S.lat, S.lon, e.lat, e.lon), __ref: e }))
+    .filter(e => e.d <= S.raio)
+    .sort((a, b) => a.d - b.d);
+  render();
+}
+
+function gestaoHTML(e) {
+  const g = nomeGestor(e.gest), f = fonesHTML(e.ct);
+  if (!g && !f) return e.sit === 'EM ATIVIDADE'
+    ? '<div class="gestao vazia">Gestor e contato ainda não informados na base</div>' : '';
+  return `<div class="gestao">
+      ${g ? `<span><span class="rot">Gestor</span> <span class="nome">${esc(g)}</span></span>` : ''}
+      ${f ? `<span><span class="rot">Contato</span> ${f}</span>` : ''}
+    </div>`;
+}
+
+function render() {
+  document.body.classList.toggle('sem-origem', S.lat === null);
+
+  if (S.lat === null) {
+    elQtd.textContent = S.todos.length;
+    elTxt.innerHTML = 'unidades no mapa. Escolha um ponto de partida para ordenar por distância — ou clique num pino.';
+    elLista.innerHTML = '<div class="vazio">Cada cor no mapa é um bairro.<br>Clique num pino para ver a ficha da escola — com gestor e contato — ou para usá-la como ponto de partida.</div>';
+    elSaida.textContent = '—';
+    $('origemCard').hidden = true;
+    desenharMapa();
+    notaMapa(S.todos.length, 'Uma cor por bairro. Clique num pino para ver a ficha ou defini-lo como ponto de partida.');
+    return;
+  }
+
+  const n = S.res.length;
+  elQtd.textContent = n;
+  elTxt.innerHTML = `${n === 1 ? 'unidade' : 'unidades'} em até <b>${fmtRaio()}</b> ${S.prep} <b>${esc(S.rotulo)}</b>`;
+
+  const oc = $('origemCard');
+  if (S.origem) {                                  // partiu de uma escola: mostra a ficha dela
+    const o = S.origem;
+    oc.innerHTML = `<span class="rot">Ponto de partida</span>
+      <h3>${esc(titulo(o.n))}</h3>
+      <p class="end">${esc(o.end ? o.end.replace(/, Teresina.*$/, '') : titulo(o.bl || '—'))} · ${esc(o.gre.replace(/^\d+ª - /, ''))}${o.mat ? ' · ' + o.mat.toLocaleString('pt-BR') + ' matrículas' : ''}</p>
+      ${gestaoHTML(o)}`;
+    oc.hidden = false;
+  } else oc.hidden = true;
+
+  elLista.innerHTML = n === 0
+    ? `<div class="vazio">Nenhuma unidade dentro de ${fmtRaio()} com esses filtros.<br>Aumente o raio ou solte algum filtro.</div>`
+    : S.res.map((e, i) => {
+      const tags = [
+        e.inep ? `<span class="tag inep">INEP ${esc(e.inep)}</span>` : '',
+        `<span class="tag">${esc(e.tip)}</span>`,
+        e.mat ? `<span class="tag">${e.mat.toLocaleString('pt-BR')} matrículas</span>` : '',
+        e.ti ? `<span class="tag int">Integral desde ${esc(e.ti)}</span>` : '',
+        ...e.et.map(t => `<span class="tag">${esc(t)}</span>`),
+        e.sit !== 'EM ATIVIDADE' ? `<span class="tag off">${esc(titulo(e.sit))}</span>` : ''
+      ].join('');
+      return `<li class="item" data-i="${i}">
+        <div class="rank">${i + 1}ª | ${fmtKmC(e.d)}</div>
+        <div class="cartao">
+          <h3 data-i="${i}">${esc(titulo(e.n))}</h3>
+          <p class="end">${esc(e.end ? e.end.replace(/, Teresina.*$/, '') : titulo(e.bl || '—'))} · ${esc(e.gre.replace(/^\d+ª - /, ''))}</p>
+          ${gestaoHTML(e)}
+          <div class="tags">${tags}</div>
+          <div class="acoes">
+            <a href="https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lon}" target="_blank" rel="noopener">Abrir no mapa</a>
+            <s>|</s>
+            <a href="https://www.google.com/maps/dir/?api=1&origin=${S.lat},${S.lon}&destination=${e.lat},${e.lon}" target="_blank" rel="noopener">Ver rota</a>
+          </div>
+        </div></li>`;
+    }).join('');
+
+  elLista.querySelectorAll('li.item').forEach(el => el.onclick = ev => {
+    if (ev.target.closest('a')) return;             // clique num link não rouba o foco do mapa
+    focar(+el.dataset.i);
+  });
+  desenharMapa();
+  notaMapa(S.res.length, 'Cor = bairro. Anel âmbar = as três mais próximas. Anel vermelho = ponto de partida.');
+  elSaida.textContent = montarTexto();
+}
+
+function focar(i) {
+  const e = S.res[i];
+  if (!e) return;
+  elLista.querySelectorAll('li.item').forEach(li => li.classList.toggle('sel', +li.dataset.i === i));
+  const li = elLista.querySelector('li.item[data-i="' + i + '"]');
+  if (li) li.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (mapa) mapa.setView([e.lat, e.lon], 15);
+}
+
+/* ====== cor estável por bairro ====== */
+const PAL = ['#1351B4', '#DB9B22', '#9E3B3E', '#4A7C3F', '#6B5B95', '#C1663E',
+             '#2E8B8B', '#8A7B2F', '#7A4A6B', '#3D6EA8', '#A85C3C', '#5B7F52'];
+function corBairro(b) {
+  if (!b) return '#8A8F86';
+  let h = 0;
+  for (let i = 0; i < b.length; i++) h = (h * 31 + b.charCodeAt(i)) >>> 0;
+  return PAL[h % PAL.length];
+}
+
+/* ====== ficha da escola (popup do mapa) ====== */
+function fichaHTML(e, d) {
+  const idx = DB.escolas.indexOf(e.__ref || e);
+  const num = [e.mat ? e.mat.toLocaleString('pt-BR') + ' matrículas' : '',
+               e.ti ? 'integral desde ' + e.ti : ''].filter(Boolean).join(' · ');
+  const g = nomeGestor(e.gest), f = fonesHTML(e.ct);
+  return `<div class="ficha">
+    <b class="t">${esc(titulo(e.n))}</b>
+    ${d != null ? `<span class="dist">${fmtKm(d)} do ponto de partida</span>` : ''}
+    <span class="lin">${esc(e.tip)} · ${esc(e.gre.replace(/^\d+ª - /, ''))}</span>
+    ${e.end ? `<span class="lin">${esc(e.end.replace(/,\s*Teresina.*$/, ''))}</span>` : ''}
+    ${e.b ? `<span class="lin bai" style="color:${corBairro(e.b)}">${esc(titulo(e.bl))}</span>` : ''}
+    ${num ? `<span class="lin">${num}</span>` : ''}
+    ${e.et.length ? `<span class="lin">${esc(e.et.join(', '))}${e.tu.length ? ' · ' + esc(e.tu.join('/')) : ''}</span>` : ''}
+    ${(g || f) ? `<span class="box">
+        ${g ? `<span><span class="rot">Gestor</span> ${esc(g)}</span>` : ''}
+        ${f ? `<span><span class="rot">Contato</span> ${f}</span>` : ''}
+      </span>` : ''}
+    <span class="acs">
+      <a href="https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lon}" target="_blank" rel="noopener">Google Maps</a>
+      ${idx >= 0 ? `<a href="#" onclick="partirDe(${idx});return false">Escolas perto daqui</a>` : ''}
+    </span></div>`;
+}
+window.partirDe = i => {
+  const e = DB.escolas[i];
+  document.querySelector('.tabs button[data-modo="escola"]').click();
+  sel.value = ''; $('inpCoord').value = ''; $('inpEscola').value = titulo(e.n);
+  definirOrigem(e.lat, e.lon, 'da escola', titulo(e.n), true, e);
+};
+
+function desenharMapa() {
+  if (!mapa) return desenharMapaSVG();
+  mapa.invalidateSize();
+  camadaEsc.clearLayers();
+  if (circulo) { mapa.removeLayer(circulo); circulo = null; }
+
+  // sem ponto de partida: toda a rede, uma cor por bairro
+  if (S.lat === null) {
+    const pts = [];
+    S.todos.forEach(e => {
+      pts.push([e.lat, e.lon]);
+      L.circleMarker([e.lat, e.lon], {
+        radius: 5, weight: 1.5, color: '#fff', fillColor: corBairro(e.b), fillOpacity: 1
+      }).addTo(camadaEsc)
+        .bindTooltip(titulo(e.n), { direction: 'top' })
+        .bindPopup(fichaHTML(e, null), { maxWidth: 290, className: 'pop' });
+    });
+    if (pts.length) mapa.fitBounds(L.latLngBounds(pts), { padding: [18, 18] });
+    return;
+  }
+
+  circulo = L.circle([S.lat, S.lon], {
+    radius: S.raio * 1000, color: '#1351B4', weight: 1.5,
+    dashArray: '5 4', fillColor: '#1351B4', fillOpacity: .05
+  }).addTo(mapa);
+
+  S.res.forEach((e, i) => {
+    L.circleMarker([e.lat, e.lon], {
+      radius: i < 3 ? 8 : 6, weight: i < 3 ? 3 : 1.5,
+      color: i < 3 ? '#DB9B22' : '#fff',
+      fillColor: corBairro(e.b), fillOpacity: 1
+    }).addTo(camadaEsc)
+      .bindTooltip(`<b>${i + 1}. ${titulo(e.n)}</b><br>${fmtKm(e.d)}`, { direction: 'top' })
+      .bindPopup(fichaHTML(e, e.d), { maxWidth: 290, className: 'pop' })
+      .on('click', () => focar(i));
+  });
+  mapa.fitBounds(circulo.getBounds(), { padding: [16, 16] });
+}
+
+function montarTexto() {
+  if (!S.res.length) return 'Nenhuma unidade encontrada com os filtros atuais.';
+  const filtros = [];
+  if (S.ativas) filtros.push('somente escolas em atividade');
+  if (S.integral) filtros.push('tempo integral');
+  if (S.comGestor) filtros.push('com gestor cadastrado');
+  if (S.et.size) filtros.push('etapa: ' + [...S.et].join(' + '));
+  if (S.tu.size) filtros.push('turno: ' + [...S.tu].join('/'));
+  return `Unidades da rede estadual num raio de ${fmtRaio()} a partir ${S.prep} ${S.rotulo}`
+    + (filtros.length ? `\n(${filtros.join('; ')})` : '') + `\n\n`
+    + S.res.map((e, i) => {
+        const g = nomeGestor(e.gest), f = fonesTexto(e.ct);
+        return `${String(i + 1).padStart(2, ' ')}. ${fmtKm(e.d).padStart(7, ' ')}  ${titulo(e.n)}`
+          + `\n            ${e.end ? e.end.replace(/, Teresina.*$/, '') : titulo(e.bl)}`
+          + `\n            ${e.tip} · ${e.gre}` + (e.mat ? ` · ${e.mat.toLocaleString('pt-BR')} matrículas` : '')
+          + (e.ti ? ` · integral desde ${e.ti}` : '')
+          + ((g || f) ? `\n            Gestor: ${g || 'não informado'}${f ? ' · Contato: ' + f : ''}` : '');
+      }).join('\n\n')
+    + `\n\n---\nDistância em linha reta; percurso real pode variar (pontes/rios).\nFonte: base de infraestrutura escolar — GDI/UGERF, SEDUC-PI.`;
+}
+
+/* ====== saídas ====== */
+$('btCopiar').onclick = e => {
+  navigator.clipboard.writeText(elSaida.textContent).then(() => {
+    const b = e.target, t = b.textContent;
+    b.textContent = 'Copiado'; b.classList.add('ok');
+    setTimeout(() => { b.textContent = t; b.classList.remove('ok'); }, 1600);
+  });
+};
+$('btCsv').onclick = () => {
+  if (!S.res.length) return;
+  const cab = ['ordem', 'distancia_km', 'nome', 'tipologia', 'situacao', 'bairro', 'endereco', 'gre',
+               'matriculas_2026', 'tempo_integral', 'etapas', 'turnos', 'nome_do_gestor', 'contato',
+               'inep', 'plus_code', 'lat', 'lon'];
+  const linhas = S.res.map((e, i) => [i + 1, e.d.toFixed(3).replace('.', ','), e.n, e.tip, e.sit, e.bl, e.end, e.gre,
+    e.mat ?? '', e.ti, e.et.join('/'), e.tu.join('/'), nomeGestor(e.gest), fonesTexto(e.ct),
+    e.inep, e.pc, e.lat, e.lon]);
+  const csv = '\uFEFF' + [cab, ...linhas].map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'escolas_proximas_' + S.rotulo.replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase() + '.csv';
+  a.click();
+};
+
+/* mostra o estado real do mapa — serve de diagnóstico se algo não desenhar */
+function notaMapa(n, texto) {
+  const el = $('mapa');
+  const modo = mapa ? 'OpenStreetMap' : 'mapa esquemático (sem rede)';
+  $('notaMapa').textContent = n + ' pinos · ' + modo + '. ' + texto;
+}
+
+/* ====== mapa esquemático: desenhado da própria base, sem rede ====== */
+function desenharMapaSVG() {
+  const el = $('mapa'), W = el.clientWidth || 420, H = el.clientHeight || 330, M = 16;
+  const semOrigem = S.lat === null;
+  const lista = semOrigem ? S.todos : S.res;
+  if (!lista.length) { el.innerHTML = ''; return; }
+
+  const latRef = semOrigem ? -5.09 : S.lat;
+  const kmLat = 1 / 111.32, kmLon = 1 / (111.32 * Math.cos(latRef * Math.PI / 180));
+  let x0, x1, y0, y1;
+  if (semOrigem) {
+    const las = lista.map(e => e.lat), los = lista.map(e => e.lon);
+    y0 = Math.min(...las); y1 = Math.max(...las);
+    x0 = Math.min(...los); x1 = Math.max(...los);
+    const mx = (x1 - x0) * .04, my = (y1 - y0) * .04;
+    x0 -= mx; x1 += mx; y0 -= my; y1 += my;
+  } else {
+    const r = S.raio * 1.18;
+    y0 = S.lat - r * kmLat; y1 = S.lat + r * kmLat;
+    x0 = S.lon - r * kmLon; x1 = S.lon + r * kmLon;
+  }
+  const escala = Math.min((W - 2 * M) / (x1 - x0), (H - 2 * M) / (y1 - y0));
+  const cx = (W - (x1 - x0) * escala) / 2, cy = (H - (y1 - y0) * escala) / 2;
+  const px = lo => cx + (lo - x0) * escala, py = la => cy + (y1 - la) * escala;
+
+  let corpo = '';
+  if (semOrigem) {
+    corpo = lista.map((e, i) =>
+      `<g class="pin" data-i="${i}"><title>${esc(titulo(e.n))} — ${esc(titulo(e.bl) || 'sem bairro')}</title>
+        <circle cx="${px(e.lon).toFixed(1)}" cy="${py(e.lat).toFixed(1)}" r="4.5"
+          fill="${corBairro(e.b)}" stroke="#fff" stroke-width="1.2"/></g>`).join('');
+  } else {
+    const fundo = DB.escolas.map(e =>
+      `<circle cx="${px(e.lon).toFixed(1)}" cy="${py(e.lat).toFixed(1)}" r="1.6" fill="#C6CCC0"/>`).join('');
+    const anel = `<circle cx="${px(S.lon).toFixed(1)}" cy="${py(S.lat).toFixed(1)}" r="${(S.raio * kmLon * escala).toFixed(1)}"
+        fill="#1351B4" fill-opacity=".05" stroke="#1351B4" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    const pinos = lista.map((e, i) =>
+      `<g class="pin" data-i="${i}"><title>${i + 1}. ${esc(titulo(e.n))} — ${fmtKm(e.d)}</title>
+        <circle cx="${px(e.lon).toFixed(1)}" cy="${py(e.lat).toFixed(1)}" r="${i < 3 ? 6 : 4.5}"
+          fill="${corBairro(e.b)}" stroke="${i < 3 ? '#DB9B22' : '#fff'}" stroke-width="${i < 3 ? 3 : 1.5}"/></g>`).join('');
+    const orig = `<circle cx="${px(S.lon).toFixed(1)}" cy="${py(S.lat).toFixed(1)}" r="6" fill="#fff" stroke="#E02B2B" stroke-width="3"/>`;
+    corpo = fundo + anel + pinos + orig;
+  }
+
+  const umKm = kmLon * escala;
+  const regua = umKm < W * .6
+    ? `<g><line x1="${M}" y1="${H - M}" x2="${(M + umKm).toFixed(1)}" y2="${H - M}" stroke="#111A24" stroke-width="1.5"/>
+       <text x="${M}" y="${H - M - 6}" font-family="monospace" font-size="10" fill="#5C6A78">1 km</text></g>` : '';
+
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${corpo}${regua}</svg>
+    <div id="fichaSvg" hidden></div>`;
+
+  const cai = $('fichaSvg');
+  el.querySelectorAll('.pin').forEach(g => g.onclick = ev => {
+    const i = +g.dataset.i, e = lista[i];
+    cai.innerHTML = fichaHTML(e, semOrigem ? null : e.d) +
+      '<button type="button" class="fecha" aria-label="Fechar">&times;</button>';
+    cai.hidden = false;
+    const c = g.querySelector('circle');
+    cai.style.left = Math.min(Math.max(+c.getAttribute('cx') - 134, 6), Math.max(6, W - 274)) + 'px';
+    cai.style.top = Math.min(+c.getAttribute('cy') + 12, Math.max(6, H - 170)) + 'px';
+    cai.querySelector('.fecha').onclick = () => { cai.hidden = true; };
+    if (!semOrigem) focar(i);
+    ev.stopPropagation();
+  });
+  el.onclick = ev => { if (!ev.target.closest('.pin, #fichaSvg')) cai.hidden = true; };
+}
+
+/* panorama inicial: toda a rede, uma cor por bairro */
+calcular();
+</script>
+</body>
+</html>

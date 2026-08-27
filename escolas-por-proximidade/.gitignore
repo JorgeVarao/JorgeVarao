@@ -1,0 +1,4 @@
+# base de dados nunca vai para o repositório
+*.csv
+*.xlsx
+*.tsv
