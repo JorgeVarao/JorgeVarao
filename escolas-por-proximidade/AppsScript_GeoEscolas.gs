@@ -121,6 +121,13 @@ function _letraParaIndice_(letra) {
   return n - 1;
 }
 
+/** 38 -> "AM". Só para relatório legível. */
+function _letraCol_(i) {
+  var s = '', n = i + 1;
+  while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+}
+
 /** Acha a coluna por qualquer um dos apelidos; se falhar, usa a letra. */
 function _colFlex_(cabNorm, cfg) {
   for (var i = 0; i < cfg.apelidos.length; i++) {
@@ -386,7 +393,7 @@ function _resolverOrigem_(origem, base) {
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('Geo-Escolas')
     .addItem('Gravar LAT/LON na base', 'GEOCODIFICAR_BASE')
-    .addItem('Conferir colunas de gestor/contato', 'CONFERIR_COLUNAS')
+    .addItem('Diagnóstico da base', 'DIAGNOSTICO')
     .addItem('Atualizar página web agora', 'LIMPAR_CACHE')
     .addToUi();
 }
@@ -418,29 +425,97 @@ function GEOCODIFICAR_BASE() {
   ui.alert(ok + ' de ' + out.length + ' linhas geolocalizadas a partir do Plus Code.');
 }
 
-/** Diz em qual coluna o script está lendo gestor e contato, e quantas estão preenchidas. */
-function CONFERIR_COLUNAS() {
-  var ui = SpreadsheetApp.getUi();
-  var sh = SpreadsheetApp.getActive().getSheetByName(CFG.ABA);
-  if (!sh) { ui.alert('Aba "' + CFG.ABA + '" não encontrada.'); return; }
+/**
+ * PRIMEIRA COISA A RODAR NUM AMBIENTE NOVO.
+ *
+ * Diz se o script achou a aba, o cabeçalho, as colunas obrigatórias, as duas
+ * colunas novas (contato e gestor) e quantas linhas têm coordenada. Não depende
+ * de menu: a saída vai para o registro de execução do editor e, se der, também
+ * aparece numa caixa de diálogo na planilha.
+ */
+function DIAGNOSTICO() {
+  var L = [], ss = SpreadsheetApp.getActive();
+  L.push('PLANILHA: ' + ss.getName());
+  L.push('ABAS: ' + ss.getSheets().map(function (x) { return x.getName(); }).join(' | '));
+  L.push('CFG.ABA = "' + CFG.ABA + '"');
+  L.push('');
+
+  var sh = ss.getSheetByName(CFG.ABA);
+  if (!sh) {
+    L.push('>> PARE AQUI: não existe aba com esse nome nesta planilha.');
+    L.push('   Copie o nome certo da lista ABAS acima para CFG.ABA, lá no topo');
+    L.push('   deste arquivo, salve e rode DIAGNOSTICO de novo.');
+    return _saidaDiag_(L);
+  }
+
   var vals = sh.getDataRange().getValues();
+  if (vals.length <= CFG.LINHA_CAB) {
+    L.push('>> A aba existe mas não tem linha de dados abaixo do cabeçalho.');
+    return _saidaDiag_(L);
+  }
   var cab = vals[CFG.LINHA_CAB - 1].map(function (c) { return String(c).trim(); });
   var cabNorm = cab.map(function (c) { return _norm_(c); });
-  var iCon = _colFlex_(cabNorm, CFG_EXTRA.CONTATO), iGes = _colFlex_(cabNorm, CFG_EXTRA.GESTOR);
+  L.push('LINHAS DE DADOS: ' + (vals.length - CFG.LINHA_CAB));
+  L.push('');
 
-  function letra(i) {
-    var s = '', n = i + 1;
-    while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
-    return s;
-  }
   function cheias(i) {
     if (i < 0) return 0;
     var c = 0;
     for (var r = CFG.LINHA_CAB; r < vals.length; r++) if (String(vals[r][i]).trim()) c++;
     return c;
   }
-  ui.alert('Leitura das colunas novas\n\n' +
-    'Contato: coluna ' + (iCon < 0 ? '(não encontrada)' : letra(iCon) + ' — "' + cab[iCon] + '" · ' + cheias(iCon) + ' preenchidas') + '\n' +
-    'Gestor:  coluna ' + (iGes < 0 ? '(não encontrada)' : letra(iGes) + ' — "' + cab[iGes] + '" · ' + cheias(iGes) + ' preenchidas') + '\n\n' +
-    'Se apontar para a coluna errada, ajuste CFG_EXTRA no script.');
+  function linha(rotulo, i, nome) {
+    while (rotulo.length < 14) rotulo += ' ';
+    return '  ' + rotulo + (i < 0
+      ? 'NÃO ENCONTRADA  (procurei por "' + nome + '")'
+      : 'coluna ' + _letraCol_(i) + '  ·  "' + cab[i] + '"  ·  ' + cheias(i) + ' preenchidas');
+  }
+
+  var obrig = [['Nome', CFG.COL_NOME], ['Plus Code', CFG.COL_PLUS], ['Bairro', CFG.COL_BAIRRO],
+               ['Endereço', CFG.COL_ENDER], ['Tipologia', CFG.COL_TIPO], ['Situação', CFG.COL_SIT],
+               ['GRE', CFG.COL_GRE], ['Matrículas', CFG.COL_MAT]];
+  var faltam = [];
+  L.push('COLUNAS DA BASE');
+  for (var k = 0; k < obrig.length; k++) {
+    var i = cab.indexOf(obrig[k][1]);
+    if (i < 0) faltam.push(obrig[k][1]);
+    L.push(linha(obrig[k][0], i, obrig[k][1]));
+  }
+  L.push('');
+  L.push('COLUNAS NOVAS (procuradas pelo nome; se falhar, pela letra)');
+  var iCon = _colFlex_(cabNorm, CFG_EXTRA.CONTATO), iGes = _colFlex_(cabNorm, CFG_EXTRA.GESTOR);
+  L.push(linha('Contato', iCon, CFG_EXTRA.CONTATO.apelidos[0] + ' / col. ' + CFG_EXTRA.CONTATO.letra));
+  L.push(linha('Gestor', iGes, CFG_EXTRA.GESTOR.apelidos[0] + ' / col. ' + CFG_EXTRA.GESTOR.letra));
+  L.push('');
+
+  var iPlus = cab.indexOf(CFG.COL_PLUS), geo = 0, comNome = 0;
+  var iNome = cab.indexOf(CFG.COL_NOME);
+  for (var r = CFG.LINHA_CAB; r < vals.length; r++) {
+    if (iNome >= 0 && !String(vals[r][iNome]).trim()) continue;
+    comNome++;
+    if (iPlus >= 0 && _plus(vals[r][iPlus])) geo++;
+  }
+  L.push('COORDENADAS: ' + geo + ' de ' + comNome + ' unidades com Plus Code utilizável');
+  L.push('  (só essas entram no mapa da página)');
+  L.push('');
+
+  if (faltam.length) {
+    L.push('>> AJUSTE ANTES DE PUBLICAR: não achei ' + faltam.join(', ') + '.');
+    L.push('   Corrija os nomes no bloco CONFIG, no topo deste arquivo.');
+  } else if (!geo) {
+    L.push('>> A base está legível, mas nenhuma linha tem Plus Code válido.');
+    L.push('   Sem isso a página abre vazia. Confira a coluna "' + CFG.COL_PLUS + '".');
+  } else {
+    L.push('>> TUDO CERTO. Pode implantar o app da web.');
+    if (iCon < 0 || iGes < 0) L.push('   (contato/gestor não foram achados: a página funciona, só não mostra esses campos)');
+  }
+  return _saidaDiag_(L);
+}
+
+/** Manda o relatório para o registro e, quando dá, para uma caixa na planilha. */
+function _saidaDiag_(L) {
+  var txt = L.join('\n');
+  Logger.log(txt);
+  try { SpreadsheetApp.getUi().alert(txt); } catch (e) {}   // sem UI disponível: fica só no registro
+  return txt;
 }
