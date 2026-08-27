@@ -138,6 +138,22 @@ devolviam, duas colunas ao final: **Nome do gestor** e **Contato**.
 
 ---
 
+## Quando o mapa não carrega
+
+A página tenta o Leaflet em duas CDNs (cdnjs, unpkg) e, chegando lá, tenta três
+servidores de tiles (OpenStreetMap, o espelho alemão e o CARTO), trocando de
+servidor se os quadrados do mapa não vierem. Se nada responder — rede corporativa
+que bloqueia CDN, por exemplo — a página **não fica em branco**: cai no mapa
+esquemático desenhado a partir das próprias coordenadas da base, com as mesmas
+fichas e os mesmos cliques. A linha abaixo do mapa diz sempre em qual modo está.
+
+Os links **Ver no mapa** e **Ver rota** abrem o Google Maps por `window.open`, e
+não pelo clique direto no link: dentro do iframe do Apps Script o clique comum
+às vezes é engolido pelo wrapper do Google e termina numa página de erro do
+Drive. Se o navegador bloquear a janela, a própria aba navega para o destino.
+
+---
+
 ## Duas ressalvas
 
 **Distância é em linha reta** (Haversine). Em Teresina isso pesa: dois pontos

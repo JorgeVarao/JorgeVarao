@@ -128,7 +128,8 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
 .acoes{display:flex;align-items:center;gap:10px;margin-top:13px;font-size:14px}
 .acoes a{text-decoration:none;border-bottom:1px solid rgba(19,81,180,.35);font-weight:500}
 .acoes a:hover{border-bottom-color:var(--azul)}
-.acoes s{color:var(--borda2);text-decoration:none}
+.acoes .sep{color:var(--borda2)}
+.origem .acoes{margin-top:11px}
 .origem{background:var(--card);border:1px solid var(--borda);border-left:4px solid var(--azul);border-radius:12px;padding:15px 18px;margin-bottom:18px;box-shadow:var(--sombra)}
 .origem[hidden]{display:none}
 .origem .rot{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--azul)}
@@ -361,7 +362,6 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
   Versão <b>v5 · 27/08/2026</b> · Base: <span id="fonteArq">planilha INEP Teresina — GDI/UGERF</span> · <span id="fonteQtd"></span> · Mapa © OpenStreetMap.
 </footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
 /* Dados ao vivo da planilha. Em produção (Apps Script) o scriptlet abaixo é
    substituído pelo JSON de dadosApp(); num teste local, troque a linha por um
@@ -443,6 +443,27 @@ const fmtKmC = k => k < 1 ? Math.round(k * 1000) + 'm'  : k.toFixed(1).replace('
 const fmtRaio = () => S.raio.toFixed(1).replace('.', ',') + 'km';
 const esc = t => String(t == null ? '' : t)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/* ====== abrir link fora do iframe ======
+   A página roda dentro do iframe isolado do Apps Script. Nesse contexto o
+   clique num <a target="_blank"> às vezes é engolido pelo wrapper do Google e
+   termina numa página de erro do Drive em vez de ir ao destino. Por isso a
+   navegação passa por window.open, com dois planos B. O href continua no
+   elemento — assim copiar o endereço e abrir em nova aba pelo teclado seguem
+   funcionando. */
+function abrirFora(url) {
+  var j = null;
+  try { j = window.open(url, '_blank', 'noopener'); } catch (e) {}
+  if (j) return false;
+  try { window.top.location.href = url; return false; } catch (e) {}   // popup bloqueado
+  location.href = url;                                                 // último recurso
+  return false;
+}
+const urlMapa = e => `https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lon}`;
+const urlRota = e => `https://www.google.com/maps/dir/?api=1&origin=${S.lat},${S.lon}` +
+                     `&destination=${e.lat},${e.lon}&travelmode=driving`;
+const linkFora = (url, texto) =>
+  `<a href="${url}" target="_blank" rel="noopener" onclick="return abrirFora(this.href)">${texto}</a>`;
 
 const ACR = new Set(['CETI','CEJA','EJA','GRE','SEDUC','IFPI','CMEI','APAE','EPT','CEM','CEF',
   'CEIP','SESI','SENAI','CSU','CPM','UE','EEM','ETI','UAB','UAPI','II','III','IV','IX','XI','XII','XV','XX','PI']);
@@ -546,20 +567,90 @@ $('fonteQtd').textContent = DB.escolas.length + ' unidades geolocalizadas · ' +
   DB.escolas.filter(e => e.sit === 'EM ATIVIDADE').length + ' escolas em atividade · ' +
   DB.escolas.filter(temGestao).length + ' com gestor/contato';
 
-let mapa = null, camadaEsc = null, marcOrig = null, circulo = null;
-if (window.L) {
+let mapa = null, camadaEsc = null, marcOrig = null, circulo = null,
+    camadaTiles = null, iTile = 0, errosTile = 0, mapaFalhou = false;
+
+/* Servidores de mapa, em ordem de tentativa. Rede corporativa costuma liberar
+   um e barrar outro, então vale ter para onde correr. */
+const TILES = [
+  { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attr: '© OpenStreetMap' },
+  { url: 'https://tile.openstreetmap.de/{z}/{x}/{y}.png',      attr: '© OpenStreetMap' },
+  { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', attr: '© OpenStreetMap · © CARTO' }
+];
+
+/* O próprio Leaflet pode não chegar — CDN bloqueada, proxy, rede caindo.
+   Tentamos dois espelhos; se nenhum vier, a página segue com o mapa
+   esquemático desenhado a partir das coordenadas da própria base. */
+const CDNS = [
+  { js: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
+    css: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css' },
+  { js: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+    css: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' }
+];
+
+function carregarLeaflet(i) {
+  if (window.L) return iniciarMapa();
+  if (i >= CDNS.length) { mapaFalhou = true; return iniciarMapa(); }
+
+  const cdn = CDNS[i];
+  let resolvido = false;
+  const seguir = function (ok) {
+    if (resolvido) return;
+    resolvido = true;
+    if (ok && window.L) iniciarMapa(); else carregarLeaflet(i + 1);
+  };
+
+  if (i > 0) {                                   // o css do primeiro veio no <head>
+    const l = document.createElement('link');
+    l.rel = 'stylesheet'; l.href = cdn.css;
+    document.head.appendChild(l);
+  }
+  const sc = document.createElement('script');
+  sc.src = cdn.js;
+  sc.onload = () => seguir(true);
+  sc.onerror = () => seguir(false);
+  document.head.appendChild(sc);
+  setTimeout(() => seguir(false), 8000);         // travou sem erro: segue adiante
+}
+
+function iniciarMapa() {
+  const el = $('mapa');
+  if (!window.L) { mapaFalhou = true; el.innerHTML = ''; return render(); }
+
+  el.innerHTML = '';                             // limpa o esquemático desenhado antes
   mapa = L.map('mapa', { scrollWheelZoom: false }).setView([REF.lat, REF.lng], 11);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(mapa);
   camadaEsc = L.layerGroup().addTo(mapa);
+  porTiles();
   mapa.on('click', e => definirOrigem(e.latlng.lat, e.latlng.lng, 'do', 'ponto no mapa', false, null));
-  if (window.ResizeObserver) new ResizeObserver(() => mapa.invalidateSize()).observe($('mapa'));
+  if (window.ResizeObserver) new ResizeObserver(() => mapa.invalidateSize()).observe(el);
+  marcarOrigem(false);                           // origem escolhida antes do mapa chegar
+  render();
   // o iframe do Apps Script define a altura depois do load; remede algumas vezes
-  const remedir = () => { mapa.invalidateSize(); desenharMapa(); };
-  window.addEventListener('load', remedir);
-  [400, 1200, 2500].forEach(t => setTimeout(remedir, t));
-} else {
-  $('notaMapa').textContent = 'Sem conexão: mostrando o mapa esquemático desenhado a partir das próprias coordenadas da base. Clique num ponto para destacá-lo na lista.';
+  [400, 1200, 2500].forEach(t => setTimeout(() => {
+    if (mapa) { mapa.invalidateSize(); desenharMapa(); }
+  }, t));
+}
+
+function porTiles() {
+  if (!mapa) return;
+  if (camadaTiles) mapa.removeLayer(camadaTiles);
+  const t = TILES[iTile];
+  errosTile = 0;
+  camadaTiles = L.tileLayer(t.url, { maxZoom: 18, attribution: t.attr }).addTo(mapa);
+  camadaTiles.on('tileerror', function () {
+    // um ou outro quadrado falho é normal; só troca de servidor se for geral
+    if (++errosTile < 8) return;
+    if (iTile < TILES.length - 1) { iTile++; porTiles(); }
+    else desistirDoMapa();
+  });
+}
+
+function desistirDoMapa() {
+  try { mapa.remove(); } catch (e) {}
+  mapa = null; camadaEsc = null; marcOrig = null; circulo = null; camadaTiles = null;
+  mapaFalhou = true;
+  $('mapa').innerHTML = '';
+  render();
 }
 
 /* ====== eventos ====== */
@@ -625,14 +716,17 @@ $('btLimpar').onclick = () => {
   calcular();
 };
 
+function marcarOrigem(mover) {
+  if (!mapa || S.lat === null) return;
+  if (marcOrig) mapa.removeLayer(marcOrig);
+  marcOrig = L.circleMarker([S.lat, S.lon], { radius: 8, color: '#E02B2B', weight: 3, fillColor: '#fff', fillOpacity: 1 })
+    .addTo(mapa).bindTooltip('Partida: ' + S.rotulo, { direction: 'top' });
+  if (mover) mapa.setView([S.lat, S.lon], 13);
+}
+
 function definirOrigem(lat, lon, prep, rotulo, mover, escola) {
   S.lat = lat; S.lon = lon; S.prep = prep; S.rotulo = rotulo; S.origem = escola || null;
-  if (mapa) {
-    if (marcOrig) mapa.removeLayer(marcOrig);
-    marcOrig = L.circleMarker([lat, lon], { radius: 8, color: '#E02B2B', weight: 3, fillColor: '#fff', fillOpacity: 1 })
-      .addTo(mapa).bindTooltip('Partida: ' + rotulo, { direction: 'top' });
-    if (mover) mapa.setView([lat, lon], 13);
-  }
+  marcarOrigem(mover);
   calcular();
 }
 
@@ -691,7 +785,8 @@ function render() {
     oc.innerHTML = `<span class="rot">Ponto de partida</span>
       <h3>${esc(titulo(o.n))}</h3>
       <p class="end">${esc(o.end ? o.end.replace(/, Teresina.*$/, '') : titulo(o.bl || '—'))} · ${esc(o.gre.replace(/^\d+ª - /, ''))}${o.mat ? ' · ' + o.mat.toLocaleString('pt-BR') + ' matrículas' : ''}</p>
-      ${gestaoHTML(o)}`;
+      ${gestaoHTML(o)}
+      <div class="acoes">${linkFora(urlMapa(o), 'Ver no mapa')}</div>`;
     oc.hidden = false;
   } else oc.hidden = true;
 
@@ -714,9 +809,9 @@ function render() {
           ${gestaoHTML(e)}
           <div class="tags">${tags}</div>
           <div class="acoes">
-            <a href="https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lon}" target="_blank" rel="noopener">Abrir no mapa</a>
-            <s>|</s>
-            <a href="https://www.google.com/maps/dir/?api=1&origin=${S.lat},${S.lon}&destination=${e.lat},${e.lon}" target="_blank" rel="noopener">Ver rota</a>
+            ${linkFora(urlMapa(e), 'Ver no mapa')}
+            <span class="sep">|</span>
+            ${linkFora(urlRota(e), 'Ver rota')}
           </div>
         </div></li>`;
     }).join('');
@@ -768,7 +863,8 @@ function fichaHTML(e, d) {
         ${f ? `<span><span class="rot">Contato</span> ${f}</span>` : ''}
       </span>` : ''}
     <span class="acs">
-      <a href="https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lon}" target="_blank" rel="noopener">Google Maps</a>
+      ${linkFora(urlMapa(e), 'Ver no mapa')}
+      ${(S.lat !== null && d != null) ? linkFora(urlRota(e), 'Ver rota') : ''}
       ${idx >= 0 ? `<a href="#" onclick="partirDe(${idx});return false">Escolas perto daqui</a>` : ''}
     </span></div>`;
 }
@@ -865,7 +961,9 @@ $('btCsv').onclick = () => {
 /* mostra o estado real do mapa — serve de diagnóstico se algo não desenhar */
 function notaMapa(n, texto) {
   const el = $('mapa');
-  const modo = mapa ? 'OpenStreetMap' : 'mapa esquemático (sem rede)';
+  const modo = mapa ? 'OpenStreetMap'
+    : (mapaFalhou ? 'mapa esquemático — o servidor de mapas não respondeu nesta rede'
+                  : 'mapa esquemático (carregando o mapa…)');
   $('notaMapa').textContent = n + ' pinos · ' + modo + '. ' + texto;
 }
 
@@ -937,8 +1035,9 @@ function desenharMapaSVG() {
   el.onclick = ev => { if (!ev.target.closest('.pin, #fichaSvg')) cai.hidden = true; };
 }
 
-/* panorama inicial: toda a rede, uma cor por bairro */
+/* panorama inicial: desenha já com o esquemático e vai buscar o mapa real */
 calcular();
+carregarLeaflet(0);
 </script>
 </body>
 </html>
