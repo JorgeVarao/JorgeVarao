@@ -138,14 +138,30 @@ devolviam, duas colunas ao final: **Nome do gestor** e **Contato**.
 
 ---
 
+## O mapa
+
+Cada unidade é um pino clicável, que abre a ficha da escola — endereço, GRE,
+matrículas, etapas, turnos e, agora, gestor e contato. Com um ponto de partida
+escolhido, os pinos vêm **numerados na mesma ordem da lista** (1 é a mais
+próxima), o pódio ganha anel âmbar e os nomes aparecem escritos no mapa: todos
+quando há até 12 resultados, só os três primeiros acima disso — mais que isso os
+rótulos se atropelam. A cor de cada pino é a do bairro.
+
+Sobre custo de processamento: **o Google não desenha o mapa**. O Apps Script só
+entrega o pacote de dados (81 KB para as 179 unidades geolocalizadas); quem
+desenha é o navegador de quem abre a página. Não há limite de execução em jogo
+nem cota consumida por pino.
+
 ## Quando o mapa não carrega
 
 A página tenta o Leaflet em duas CDNs (cdnjs, unpkg) e, chegando lá, tenta três
 servidores de tiles (OpenStreetMap, o espelho alemão e o CARTO), trocando de
 servidor se os quadrados do mapa não vierem. Se nada responder — rede corporativa
 que bloqueia CDN, por exemplo — a página **não fica em branco**: cai no mapa
-esquemático desenhado a partir das próprias coordenadas da base, com as mesmas
-fichas e os mesmos cliques. A linha abaixo do mapa diz sempre em qual modo está.
+esquemático desenhado a partir das próprias coordenadas da base, com os mesmos
+pinos numerados, as mesmas fichas e os mesmos cliques. Como ali não há mapa de
+fundo, a visão geral escreve o nome dos bairros com mais de uma unidade — a
+única referência geográfica que sai da própria base — evitando sobreposição. A linha abaixo do mapa diz sempre em qual modo está.
 
 Os links **Ver no mapa** e **Ver rota** abrem o Google Maps por `window.open`, e
 não pelo clique direto no link: dentro do iframe do Apps Script o clique comum

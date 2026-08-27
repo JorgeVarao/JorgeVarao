@@ -92,6 +92,16 @@ input[type=range]{width:100%;accent-color:var(--azul);margin:0}
 #mapa{height:600px;border:1px solid var(--borda);border-radius:14px;background:#fff;overflow:hidden;z-index:0;position:relative;box-shadow:var(--sombra)}
 #mapa svg{display:block;width:100%;height:100%}
 #mapa .pin{cursor:pointer}
+/* pinos numerados e rótulos permanentes no mapa */
+.leaflet-div-icon{background:none;border:none}
+.pino-n{display:flex;align-items:center;justify-content:center;width:26px;height:26px;
+  border-radius:50%;color:#fff;font:700 12px/1 var(--corpo);border:2px solid #fff;
+  box-shadow:0 1px 5px rgba(16,24,40,.35);cursor:pointer}
+.pino-n.top{border-color:#DB9B22;border-width:3px;width:30px;height:30px;font-size:13px}
+.leaflet-tooltip.rot-mapa{background:rgba(255,255,255,.94);border:1px solid var(--borda2);
+  border-radius:6px;box-shadow:0 1px 4px rgba(16,24,40,.18);color:var(--texto);
+  font:600 11.5px/1.25 var(--corpo);padding:3px 7px;white-space:nowrap;max-width:190px}
+.leaflet-tooltip.rot-mapa::before{display:none}
 .mapa-nota{font-size:12px;color:var(--texto3);margin:8px 2px 0;line-height:1.45}
 
 /* ---------- placar ---------- */
@@ -901,15 +911,30 @@ function desenharMapa() {
     dashArray: '5 4', fillColor: '#1351B4', fillOpacity: .05
   }).addTo(mapa);
 
+  // com poucos resultados dá para nomear todo mundo; com muitos, só o pódio,
+  // senão os rótulos se atropelam e o mapa fica ilegível
+  const nomeiaTodos = S.res.length <= 12;
+
   S.res.forEach((e, i) => {
-    L.circleMarker([e.lat, e.lon], {
-      radius: i < 3 ? 8 : 6, weight: i < 3 ? 3 : 1.5,
-      color: i < 3 ? '#DB9B22' : '#fff',
-      fillColor: corBairro(e.b), fillOpacity: 1
+    const top = i < 3;
+    const marca = L.marker([e.lat, e.lon], {
+      icon: L.divIcon({
+        className: '',
+        html: `<span class="pino-n${top ? ' top' : ''}" style="background:${corBairro(e.b)}">${i + 1}</span>`,
+        iconSize: top ? [30, 30] : [26, 26],
+        iconAnchor: top ? [15, 15] : [13, 13]
+      }),
+      title: titulo(e.n) + ' — ' + fmtKm(e.d)
     }).addTo(camadaEsc)
-      .bindTooltip(`<b>${i + 1}. ${titulo(e.n)}</b><br>${fmtKm(e.d)}`, { direction: 'top' })
       .bindPopup(fichaHTML(e, e.d), { maxWidth: 290, className: 'pop' })
       .on('click', () => focar(i));
+
+    if (top || nomeiaTodos) {
+      marca.bindTooltip(`${titulo(e.n)} · ${fmtKm(e.d)}`, {
+        permanent: true, direction: 'right', className: 'rot-mapa',
+        offset: [top ? 17 : 15, 0], opacity: 1
+      });
+    }
   });
   mapa.fitBounds(circulo.getBounds(), { padding: [16, 16] });
 }
@@ -994,20 +1019,63 @@ function desenharMapaSVG() {
 
   let corpo = '';
   if (semOrigem) {
-    corpo = lista.map((e, i) =>
+    // sem mapa de fundo, o nome do bairro é a única referência geográfica que
+    // temos — e ela sai da própria base. Só os bairros com mais de uma unidade,
+    // senão vira uma nuvem de texto.
+    const grupos = {};
+    lista.forEach(e => {
+      if (!e.b) return;
+      (grupos[e.b] = grupos[e.b] || { la: 0, lo: 0, n: 0, bl: e.bl }).la += e.lat;
+      grupos[e.b].lo += e.lon; grupos[e.b].n++;
+    });
+    // Teresina é densa no centro: sem controle de colisão os nomes viram um
+    // borrão. Vamos dos bairros com mais unidades para os com menos e só
+    // desenhamos o que não encosta em nada já desenhado.
+    const caixas = [];
+    const nomes = Object.keys(grupos)
+      .filter(k => grupos[k].n > 1)
+      .sort((a, b) => grupos[b].n - grupos[a].n)
+      .map(k => {
+        const g = grupos[k], txt = titulo(g.bl);
+        const X = px(g.lo / g.n), Y = py(g.la / g.n) - 9;
+        const larg = txt.length * 5.4, alt = 12;
+        const cx = { x1: X - larg / 2, x2: X + larg / 2, y1: Y - alt, y2: Y + 3 };
+        const bate = caixas.some(c => !(cx.x2 < c.x1 || cx.x1 > c.x2 || cx.y2 < c.y1 || cx.y1 > c.y2));
+        if (bate || cx.x1 < 2 || cx.x2 > W - 2) return '';
+        caixas.push(cx);
+        return `<text x="${X.toFixed(1)}" y="${Y.toFixed(1)}" text-anchor="middle"
+          font-family="system-ui,sans-serif" font-size="9.5" font-weight="600"
+          fill="#5C6A78" stroke="#EEF1F4" stroke-width="2.5" paint-order="stroke"
+          pointer-events="none">${esc(txt)}</text>`;
+      }).join('');
+    corpo = nomes + lista.map((e, i) =>
       `<g class="pin" data-i="${i}"><title>${esc(titulo(e.n))} — ${esc(titulo(e.bl) || 'sem bairro')}</title>
-        <circle cx="${px(e.lon).toFixed(1)}" cy="${py(e.lat).toFixed(1)}" r="4.5"
-          fill="${corBairro(e.b)}" stroke="#fff" stroke-width="1.2"/></g>`).join('');
+        <circle cx="${px(e.lon).toFixed(1)}" cy="${py(e.lat).toFixed(1)}" r="5"
+          fill="${corBairro(e.b)}" stroke="#fff" stroke-width="1.4"/></g>`).join('');
   } else {
     const fundo = DB.escolas.map(e =>
       `<circle cx="${px(e.lon).toFixed(1)}" cy="${py(e.lat).toFixed(1)}" r="1.6" fill="#C6CCC0"/>`).join('');
     const anel = `<circle cx="${px(S.lon).toFixed(1)}" cy="${py(S.lat).toFixed(1)}" r="${(S.raio * kmLon * escala).toFixed(1)}"
         fill="#1351B4" fill-opacity=".05" stroke="#1351B4" stroke-width="1.5" stroke-dasharray="5 4"/>`;
-    const pinos = lista.map((e, i) =>
-      `<g class="pin" data-i="${i}"><title>${i + 1}. ${esc(titulo(e.n))} — ${fmtKm(e.d)}</title>
-        <circle cx="${px(e.lon).toFixed(1)}" cy="${py(e.lat).toFixed(1)}" r="${i < 3 ? 6 : 4.5}"
-          fill="${corBairro(e.b)}" stroke="${i < 3 ? '#DB9B22' : '#fff'}" stroke-width="${i < 3 ? 3 : 1.5}"/></g>`).join('');
-    const orig = `<circle cx="${px(S.lon).toFixed(1)}" cy="${py(S.lat).toFixed(1)}" r="6" fill="#fff" stroke="#E02B2B" stroke-width="3"/>`;
+    const nomeiaTodos = lista.length <= 12;
+    const pinos = lista.map((e, i) => {
+      const X = px(e.lon), Y = py(e.lat), top = i < 3, r = top ? 11 : 9;
+      const rotulo = (top || nomeiaTodos)
+        ? `<text x="${(X + r + 4).toFixed(1)}" y="${(Y + 4).toFixed(1)}" font-family="system-ui,sans-serif"
+             font-size="10.5" font-weight="600" fill="#111A24" stroke="#fff" stroke-width="3"
+             paint-order="stroke">${esc(titulo(e.n))}</text>` : '';
+      return `<g class="pin" data-i="${i}"><title>${i + 1}. ${esc(titulo(e.n))} — ${fmtKm(e.d)}</title>
+        <circle cx="${X.toFixed(1)}" cy="${Y.toFixed(1)}" r="${r}"
+          fill="${corBairro(e.b)}" stroke="${top ? '#DB9B22' : '#fff'}" stroke-width="${top ? 3 : 2}"/>
+        <text x="${X.toFixed(1)}" y="${(Y + 4).toFixed(1)}" text-anchor="middle"
+          font-family="system-ui,sans-serif" font-size="${top ? 12 : 11}" font-weight="700"
+          fill="#fff" pointer-events="none">${i + 1}</text>${rotulo}</g>`;
+    }).join('');
+    // anel vazado: quando o ponto de partida cai em cima de uma escola, o pino
+    // numerado dela continua visível por dentro
+    const OX = px(S.lon).toFixed(1), OY = py(S.lat).toFixed(1);
+    const orig = `<circle cx="${OX}" cy="${OY}" r="15" fill="none" stroke="#E02B2B" stroke-width="2.5"/>
+      <circle cx="${OX}" cy="${OY}" r="2.5" fill="#E02B2B"/>`;
     corpo = fundo + anel + pinos + orig;
   }
 
