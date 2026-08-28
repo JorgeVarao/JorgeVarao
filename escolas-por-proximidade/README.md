@@ -36,33 +36,6 @@ O `Index.html` deste repositório lê os dados ao vivo pelo scriptlet
 `<?!= dadosApp() ?>`. Ele só funciona dentro do Apps Script — abrir o arquivo
 direto no navegador não carrega dado nenhum.
 
-## Ambiente novo: em que ordem rodar
-
-Nenhuma dessas funções "liga" a página — a página nasce da **implantação**. O que
-se roda no editor é só o diagnóstico. A ordem é esta:
-
-1. **`DIAGNOSTICO`** — rode esta primeiro, pelo botão *Executar* do editor. É ela
-   que dispara a tela de autorização do Google (aceite) e que responde se o
-   script achou a aba, o cabeçalho, as colunas e as coordenadas. Num ambiente
-   novo o erro quase certo é `CFG.ABA` apontar para uma aba que não existe: o
-   relatório lista os nomes reais das abas para você copiar. O resultado aparece
-   no registro de execução e também numa caixa de diálogo na planilha.
-2. **Recarregue a planilha** (F5). Aí aparece o menu **Geo-Escolas**, que roda o
-   mesmo diagnóstico e limpa o cache sem passar pelo editor.
-3. **Implantar > Nova implantação > App da Web** (*Executar como: Eu*). A URL
-   `/exec` que sai daí é a página. **Não rode `doGet` na mão** — fora do contexto
-   web ela só devolve um objeto HTML e parece erro.
-
-Opcionais, nunca obrigatórios:
-
-- **`GEOCODIFICAR_BASE`** grava LAT/LON como valores fixos em duas colunas novas.
-  A página **não** precisa disso — ela decodifica o Plus Code na hora. Só use se
-  quiser as coordenadas na própria planilha para outros usos.
-- **`LIMPAR_CACHE`** força a página a refletir a planilha na hora, sem esperar os
-  10 minutos de cache. Também está no menu.
-- As demais (`PLUSCODE_LAT`, `ESCOLAS_PROXIMAS`, …) são funções de célula: vão
-  dentro de uma fórmula, não no botão *Executar*.
-
 ---
 
 ## O que mudou nesta versão (v5)
@@ -72,17 +45,20 @@ Layout institucional: faixa de cores do Governo, cabeçalho com a marca da SEDUC
 painel de filtros à esquerda em cartões (Localização, Situação, Etapa de Ensino,
 Turno) e resultados em cartões à direita, com a “Resposta Pronta” ao lado.
 
-A marca institucional tem dois pontos de troca, no início do script do `Index.html`:
+O brasão é um SVG desenhado no próprio arquivo. Para usar a arte oficial, preencha
+a constante `BRASAO_URL` no início do script do `Index.html` — com uma URL pública
+ou um `data:image/png;base64,...` — que o SVG é substituído automaticamente.
 
-- **`MARCA_URL`** substitui o bloco inteiro (SECRETARIA DA EDUCAÇÃO + brasão +
-  GOVERNO DO ESTADO DO PIAUÍ) por uma única imagem — é o caso da arte oficial em
-  faixa. É esta que você quer na maioria das vezes.
-- **`BRASAO_URL`** substitui só o brasão, mantendo os textos ao lado.
+**O mapa fica pequeno, no canto superior direito**, acima da Resposta Pronta. Ele
+serve de referência visual, não de ferramenta principal: quem decide é a lista.
+Cada pino continua clicável e abre a ficha da escola.
 
-Ambas aceitam URL pública ou `data:image/png;base64,...`. Preencha uma **ou** outra
-(`MARCA_URL` tem prioridade); vazias as duas, fica o brasão em SVG desenhado no
-próprio arquivo. Embutir em base64 é o mais seguro: a página não depende de host
-externo nem de o servidor da imagem estar no ar.
+**Ver no mapa e Ver rota** abrem o Google Maps por `window.open`, e não pelo
+clique direto no link: dentro do iframe do Apps Script o clique comum às vezes é
+interceptado pelo wrapper do Google e termina numa página de erro do Drive. Se o
+navegador bloquear a janela, a própria aba navega para o destino. O endereço
+continua no `href`, então copiar o link e abrir em nova aba pelo teclado seguem
+funcionando.
 
 ### 2. Gestor e contato (colunas AN e AM)
 `NOME DO GESTOR` e `CONTATO` agora aparecem:
@@ -99,8 +75,8 @@ que já foi levantado do que falta levantar.
 As colunas são localizadas **pelo nome do cabeçalho**, com uma lista de apelidos
 aceitos (`CONTATO`, `TELEFONE`, `NOME DO GESTOR`, `DIRETOR`…) e, se nenhum casar,
 pela letra da coluna (`AM` e `AN`). Ou seja: renomear o cabeçalho não quebra a
-leitura. O menu **Geo-Escolas > Diagnóstico da base** mostra de qual coluna o script está
-lendo e quantas linhas estão preenchidas.
+leitura. O menu **Geo-Escolas > Conferir colunas de gestor/contato** mostra de qual
+coluna o script está lendo e quantas linhas estão preenchidas.
 
 ### 3. Distância a partir de uma escola específica
 A pergunta “escolas a X km da escola Y” virou um modo próprio.
@@ -135,38 +111,6 @@ pino do mapa pelo link **“Escolas perto daqui”** na ficha.
 
 `ESCOLAS_PROXIMAS` e `ESCOLAS_PROXIMAS_DA_ESCOLA` devolvem, além do que já
 devolviam, duas colunas ao final: **Nome do gestor** e **Contato**.
-
----
-
-## O mapa
-
-Cada unidade é um pino clicável, que abre a ficha da escola — endereço, GRE,
-matrículas, etapas, turnos e, agora, gestor e contato. Com um ponto de partida
-escolhido, os pinos vêm **numerados na mesma ordem da lista** (1 é a mais
-próxima), o pódio ganha anel âmbar e os nomes aparecem escritos no mapa: todos
-quando há até 12 resultados, só os três primeiros acima disso — mais que isso os
-rótulos se atropelam. A cor de cada pino é a do bairro.
-
-Sobre custo de processamento: **o Google não desenha o mapa**. O Apps Script só
-entrega o pacote de dados (81 KB para as 179 unidades geolocalizadas); quem
-desenha é o navegador de quem abre a página. Não há limite de execução em jogo
-nem cota consumida por pino.
-
-## Quando o mapa não carrega
-
-A página tenta o Leaflet em duas CDNs (cdnjs, unpkg) e, chegando lá, tenta três
-servidores de tiles (OpenStreetMap, o espelho alemão e o CARTO), trocando de
-servidor se os quadrados do mapa não vierem. Se nada responder — rede corporativa
-que bloqueia CDN, por exemplo — a página **não fica em branco**: cai no mapa
-esquemático desenhado a partir das próprias coordenadas da base, com os mesmos
-pinos numerados, as mesmas fichas e os mesmos cliques. Como ali não há mapa de
-fundo, a visão geral escreve o nome dos bairros com mais de uma unidade — a
-única referência geográfica que sai da própria base — evitando sobreposição. A linha abaixo do mapa diz sempre em qual modo está.
-
-Os links **Ver no mapa** e **Ver rota** abrem o Google Maps por `window.open`, e
-não pelo clique direto no link: dentro do iframe do Apps Script o clique comum
-às vezes é engolido pelo wrapper do Google e termina numa página de erro do
-Drive. Se o navegador bloquear a janela, a própria aba navega para o destino.
 
 ---
 
