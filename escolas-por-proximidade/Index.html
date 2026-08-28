@@ -365,13 +365,13 @@ const DB = <?!= dadosApp() ?>;
 </script>
 <script>
 /* ====== brasão: troque por arte oficial se quiser ====== */
-const BRASAO_URL = '';   // ex.: 'https://.../brasao-pi.png' ou 'data:image/png;base64,...'
+const BRASAO_URL = '';   /* URL publica da arte, ou data:image/png;base64,... */
 if (BRASAO_URL) document.getElementById('brasao').innerHTML =
   '<img src="' + BRASAO_URL + '" alt="Brasão do Estado do Piauí">';
 
 /* ====== Plus Code (Open Location Code) — decodificação local, sem API ====== */
 const OA = '23456789CFGHJMPQRVWX';
-const REF = { lat: -5.0892, lng: -42.8019 };           // âncora: centro de Teresina
+const REF = { lat: -5.0892, lng: -42.8019 };           /* âncora: centro de Teresina */
 
 function olcDecode(code) {
   code = code.replace(/\+/g, '').replace(/0+$/, '').toUpperCase();
@@ -480,7 +480,7 @@ function buscarEscola(q){
   const k = chave(bruto);
   if (!k) return null;
   const dig = bruto.replace(/\D+/g, '');
-  if (dig.length >= 7) {                                    // veio um INEP
+  if (dig.length >= 7) {                                    /* veio um INEP */
     const porInep = DB.escolas.find(e => e.inep && e.inep === dig);
     if (porInep) return porInep;
   }
@@ -536,7 +536,7 @@ if (window.L) {
   camadaEsc = L.layerGroup().addTo(mapa);
   mapa.on('click', e => definirOrigem(e.latlng.lat, e.latlng.lng, 'do', 'ponto no mapa', false, null));
   if (window.ResizeObserver) new ResizeObserver(() => mapa.invalidateSize()).observe($('mapa'));
-  // o iframe do Apps Script define a altura depois do load; remede algumas vezes
+  /* o iframe do Apps Script define a altura depois do load; remede algumas vezes */
   const remedir = () => { mapa.invalidateSize(); desenharMapa(); };
   window.addEventListener('load', remedir);
   [400, 1200, 2500].forEach(t => setTimeout(remedir, t));
@@ -632,7 +632,7 @@ function calcular() {
   S.todos = DB.escolas.filter(passaFiltro);
   if (S.lat === null) { S.res = []; return render(); }
   S.res = DB.escolas
-    .filter(e => e !== S.origem && passaFiltro(e))   // a escola de partida não disputa consigo mesma
+    .filter(e => e !== S.origem && passaFiltro(e))   /* a origem não disputa consigo mesma */
     .map(e => ({ ...e, d: distKm(S.lat, S.lon, e.lat, e.lon), __ref: e }))
     .filter(e => e.d <= S.raio)
     .sort((a, b) => a.d - b.d);
@@ -668,7 +668,7 @@ function render() {
   elTxt.innerHTML = `${n === 1 ? 'unidade' : 'unidades'} em até <b>${fmtRaio()}</b> ${S.prep} <b>${esc(S.rotulo)}</b>`;
 
   const oc = $('origemCard');
-  if (S.origem) {                                  // partiu de uma escola: mostra a ficha dela
+  if (S.origem) {                                  /* partiu de uma escola: mostra a ficha */
     const o = S.origem;
     oc.innerHTML = `<span class="rot">Ponto de partida</span>
       <h3>${esc(titulo(o.n))}</h3>
@@ -704,7 +704,7 @@ function render() {
     }).join('');
 
   elLista.querySelectorAll('li.item').forEach(el => el.onclick = ev => {
-    if (ev.target.closest('a')) return;             // clique num link não rouba o foco do mapa
+    if (ev.target.closest('a')) return;             /* clique em link não rouba o foco */
     focar(+el.dataset.i);
   });
   desenharMapa();
@@ -767,7 +767,7 @@ function desenharMapa() {
   camadaEsc.clearLayers();
   if (circulo) { mapa.removeLayer(circulo); circulo = null; }
 
-  // sem ponto de partida: toda a rede, uma cor por bairro
+  /* sem ponto de partida: toda a rede, uma cor por bairro */
   if (S.lat === null) {
     const pts = [];
     S.todos.forEach(e => {
