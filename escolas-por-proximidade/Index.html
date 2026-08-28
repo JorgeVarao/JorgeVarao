@@ -40,8 +40,6 @@ a{color:var(--azul)}
 .orgs .g3{font-weight:800;font-size:13px;letter-spacing:-.01em}
 .orgs .brasao{display:block;width:52px;height:auto}
 .orgs .brasao img{display:block;width:52px;height:auto}
-.orgs .lockup{display:flex;align-items:center;gap:16px}
-.orgs .marca-oficial{display:block;height:56px;width:auto;max-width:min(100%,420px)}
 
 /* ---------- estrutura ---------- */
 .app{max-width:1460px;margin:0 auto;padding:24px 26px 56px;display:grid;grid-template-columns:388px minmax(0,1fr);gap:26px;align-items:start}
@@ -92,16 +90,6 @@ input[type=range]{width:100%;accent-color:var(--azul);margin:0}
 #mapa{height:600px;border:1px solid var(--borda);border-radius:14px;background:#fff;overflow:hidden;z-index:0;position:relative;box-shadow:var(--sombra)}
 #mapa svg{display:block;width:100%;height:100%}
 #mapa .pin{cursor:pointer}
-/* pinos numerados e rótulos permanentes no mapa */
-.leaflet-div-icon{background:none;border:none}
-.pino-n{display:flex;align-items:center;justify-content:center;width:26px;height:26px;
-  border-radius:50%;color:#fff;font:700 12px/1 var(--corpo);border:2px solid #fff;
-  box-shadow:0 1px 5px rgba(16,24,40,.35);cursor:pointer}
-.pino-n.top{border-color:#DB9B22;border-width:3px;width:30px;height:30px;font-size:13px}
-.leaflet-tooltip.rot-mapa{background:rgba(255,255,255,.94);border:1px solid var(--borda2);
-  border-radius:6px;box-shadow:0 1px 4px rgba(16,24,40,.18);color:var(--texto);
-  font:600 11.5px/1.25 var(--corpo);padding:3px 7px;white-space:nowrap;max-width:190px}
-.leaflet-tooltip.rot-mapa::before{display:none}
 .mapa-nota{font-size:12px;color:var(--texto3);margin:8px 2px 0;line-height:1.45}
 
 /* ---------- placar ---------- */
@@ -138,8 +126,7 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
 .acoes{display:flex;align-items:center;gap:10px;margin-top:13px;font-size:14px}
 .acoes a{text-decoration:none;border-bottom:1px solid rgba(19,81,180,.35);font-weight:500}
 .acoes a:hover{border-bottom-color:var(--azul)}
-.acoes .sep{color:var(--borda2)}
-.origem .acoes{margin-top:11px}
+.acoes s{color:var(--borda2);text-decoration:none}
 .origem{background:var(--card);border:1px solid var(--borda);border-left:4px solid var(--azul);border-radius:12px;padding:15px 18px;margin-bottom:18px;box-shadow:var(--sombra)}
 .origem[hidden]{display:none}
 .origem .rot{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--azul)}
@@ -193,7 +180,6 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
   .topo-in,.app,.rodape{padding-left:14px;padding-right:14px}
   .orgs{gap:10px}
   .orgs .brasao,.orgs .brasao img{width:40px}
-  .orgs .marca-oficial{height:40px}
   #mapa{height:340px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -219,7 +205,6 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
     </div>
     <div class="orgs">
       <span class="g1">Gerência de Dados<br>de Infraestrutura</span>
-      <span class="lockup" id="lockup">
       <span class="g2">Secretaria da<br>Educação – SEDUC</span>
       <!-- Brasão: para usar a arte oficial, preencha BRASAO_URL no script
            (URL pública ou data:image/png;base64,...) que este SVG é trocado. -->
@@ -246,7 +231,6 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
         </svg>
       </span>
       <span class="g3">Governo do<br>Estado do Piauí</span>
-      </span>
     </div>
   </div>
 </header>
@@ -372,6 +356,7 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
   Versão <b>v5 · 27/08/2026</b> · Base: <span id="fonteArq">planilha INEP Teresina — GDI/UGERF</span> · <span id="fonteQtd"></span> · Mapa © OpenStreetMap.
 </footer>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
 /* Dados ao vivo da planilha. Em produção (Apps Script) o scriptlet abaixo é
    substituído pelo JSON de dadosApp(); num teste local, troque a linha por um
@@ -379,23 +364,10 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
 const DB = <?!= dadosApp() ?>;
 </script>
 <script>
-/* ====== marca institucional ======================================
-   MARCA_URL  troca o bloco inteiro (SECRETARIA DA EDUCAÇÃO + brasão + GOVERNO
-              DO ESTADO DO PIAUÍ) por uma única imagem — é o caso da arte
-              oficial em faixa. Aceita URL pública ou 'data:image/png;base64,...'.
-   BRASAO_URL troca só o brasão, mantendo os textos ao lado.
-   Preencha um OU outro; MARCA_URL tem prioridade.                            */
-const MARCA_URL  = '';
-const BRASAO_URL = '';
-
-if (MARCA_URL) {
-  document.getElementById('lockup').innerHTML =
-    '<img class="marca-oficial" src="' + MARCA_URL +
-    '" alt="Secretaria da Educação – SEDUC · Governo do Estado do Piauí">';
-} else if (BRASAO_URL) {
-  document.getElementById('brasao').innerHTML =
-    '<img src="' + BRASAO_URL + '" alt="Brasão do Estado do Piauí">';
-}
+/* ====== brasão: troque por arte oficial se quiser ====== */
+const BRASAO_URL = '';   // ex.: 'https://.../brasao-pi.png' ou 'data:image/png;base64,...'
+if (BRASAO_URL) document.getElementById('brasao').innerHTML =
+  '<img src="' + BRASAO_URL + '" alt="Brasão do Estado do Piauí">';
 
 /* ====== Plus Code (Open Location Code) — decodificação local, sem API ====== */
 const OA = '23456789CFGHJMPQRVWX';
@@ -453,27 +425,6 @@ const fmtKmC = k => k < 1 ? Math.round(k * 1000) + 'm'  : k.toFixed(1).replace('
 const fmtRaio = () => S.raio.toFixed(1).replace('.', ',') + 'km';
 const esc = t => String(t == null ? '' : t)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-/* ====== abrir link fora do iframe ======
-   A página roda dentro do iframe isolado do Apps Script. Nesse contexto o
-   clique num <a target="_blank"> às vezes é engolido pelo wrapper do Google e
-   termina numa página de erro do Drive em vez de ir ao destino. Por isso a
-   navegação passa por window.open, com dois planos B. O href continua no
-   elemento — assim copiar o endereço e abrir em nova aba pelo teclado seguem
-   funcionando. */
-function abrirFora(url) {
-  var j = null;
-  try { j = window.open(url, '_blank', 'noopener'); } catch (e) {}
-  if (j) return false;
-  try { window.top.location.href = url; return false; } catch (e) {}   // popup bloqueado
-  location.href = url;                                                 // último recurso
-  return false;
-}
-const urlMapa = e => `https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lon}`;
-const urlRota = e => `https://www.google.com/maps/dir/?api=1&origin=${S.lat},${S.lon}` +
-                     `&destination=${e.lat},${e.lon}&travelmode=driving`;
-const linkFora = (url, texto) =>
-  `<a href="${url}" target="_blank" rel="noopener" onclick="return abrirFora(this.href)">${texto}</a>`;
 
 const ACR = new Set(['CETI','CEJA','EJA','GRE','SEDUC','IFPI','CMEI','APAE','EPT','CEM','CEF',
   'CEIP','SESI','SENAI','CSU','CPM','UE','EEM','ETI','UAB','UAPI','II','III','IV','IX','XI','XII','XV','XX','PI']);
@@ -577,90 +528,20 @@ $('fonteQtd').textContent = DB.escolas.length + ' unidades geolocalizadas · ' +
   DB.escolas.filter(e => e.sit === 'EM ATIVIDADE').length + ' escolas em atividade · ' +
   DB.escolas.filter(temGestao).length + ' com gestor/contato';
 
-let mapa = null, camadaEsc = null, marcOrig = null, circulo = null,
-    camadaTiles = null, iTile = 0, errosTile = 0, mapaFalhou = false;
-
-/* Servidores de mapa, em ordem de tentativa. Rede corporativa costuma liberar
-   um e barrar outro, então vale ter para onde correr. */
-const TILES = [
-  { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attr: '© OpenStreetMap' },
-  { url: 'https://tile.openstreetmap.de/{z}/{x}/{y}.png',      attr: '© OpenStreetMap' },
-  { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', attr: '© OpenStreetMap · © CARTO' }
-];
-
-/* O próprio Leaflet pode não chegar — CDN bloqueada, proxy, rede caindo.
-   Tentamos dois espelhos; se nenhum vier, a página segue com o mapa
-   esquemático desenhado a partir das coordenadas da própria base. */
-const CDNS = [
-  { js: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js',
-    css: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css' },
-  { js: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
-    css: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' }
-];
-
-function carregarLeaflet(i) {
-  if (window.L) return iniciarMapa();
-  if (i >= CDNS.length) { mapaFalhou = true; return iniciarMapa(); }
-
-  const cdn = CDNS[i];
-  let resolvido = false;
-  const seguir = function (ok) {
-    if (resolvido) return;
-    resolvido = true;
-    if (ok && window.L) iniciarMapa(); else carregarLeaflet(i + 1);
-  };
-
-  if (i > 0) {                                   // o css do primeiro veio no <head>
-    const l = document.createElement('link');
-    l.rel = 'stylesheet'; l.href = cdn.css;
-    document.head.appendChild(l);
-  }
-  const sc = document.createElement('script');
-  sc.src = cdn.js;
-  sc.onload = () => seguir(true);
-  sc.onerror = () => seguir(false);
-  document.head.appendChild(sc);
-  setTimeout(() => seguir(false), 8000);         // travou sem erro: segue adiante
-}
-
-function iniciarMapa() {
-  const el = $('mapa');
-  if (!window.L) { mapaFalhou = true; el.innerHTML = ''; return render(); }
-
-  el.innerHTML = '';                             // limpa o esquemático desenhado antes
+let mapa = null, camadaEsc = null, marcOrig = null, circulo = null;
+if (window.L) {
   mapa = L.map('mapa', { scrollWheelZoom: false }).setView([REF.lat, REF.lng], 11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(mapa);
   camadaEsc = L.layerGroup().addTo(mapa);
-  porTiles();
   mapa.on('click', e => definirOrigem(e.latlng.lat, e.latlng.lng, 'do', 'ponto no mapa', false, null));
-  if (window.ResizeObserver) new ResizeObserver(() => mapa.invalidateSize()).observe(el);
-  marcarOrigem(false);                           // origem escolhida antes do mapa chegar
-  render();
+  if (window.ResizeObserver) new ResizeObserver(() => mapa.invalidateSize()).observe($('mapa'));
   // o iframe do Apps Script define a altura depois do load; remede algumas vezes
-  [400, 1200, 2500].forEach(t => setTimeout(() => {
-    if (mapa) { mapa.invalidateSize(); desenharMapa(); }
-  }, t));
-}
-
-function porTiles() {
-  if (!mapa) return;
-  if (camadaTiles) mapa.removeLayer(camadaTiles);
-  const t = TILES[iTile];
-  errosTile = 0;
-  camadaTiles = L.tileLayer(t.url, { maxZoom: 18, attribution: t.attr }).addTo(mapa);
-  camadaTiles.on('tileerror', function () {
-    // um ou outro quadrado falho é normal; só troca de servidor se for geral
-    if (++errosTile < 8) return;
-    if (iTile < TILES.length - 1) { iTile++; porTiles(); }
-    else desistirDoMapa();
-  });
-}
-
-function desistirDoMapa() {
-  try { mapa.remove(); } catch (e) {}
-  mapa = null; camadaEsc = null; marcOrig = null; circulo = null; camadaTiles = null;
-  mapaFalhou = true;
-  $('mapa').innerHTML = '';
-  render();
+  const remedir = () => { mapa.invalidateSize(); desenharMapa(); };
+  window.addEventListener('load', remedir);
+  [400, 1200, 2500].forEach(t => setTimeout(remedir, t));
+} else {
+  $('notaMapa').textContent = 'Sem conexão: mostrando o mapa esquemático desenhado a partir das próprias coordenadas da base. Clique num ponto para destacá-lo na lista.';
 }
 
 /* ====== eventos ====== */
@@ -726,17 +607,14 @@ $('btLimpar').onclick = () => {
   calcular();
 };
 
-function marcarOrigem(mover) {
-  if (!mapa || S.lat === null) return;
-  if (marcOrig) mapa.removeLayer(marcOrig);
-  marcOrig = L.circleMarker([S.lat, S.lon], { radius: 8, color: '#E02B2B', weight: 3, fillColor: '#fff', fillOpacity: 1 })
-    .addTo(mapa).bindTooltip('Partida: ' + S.rotulo, { direction: 'top' });
-  if (mover) mapa.setView([S.lat, S.lon], 13);
-}
-
 function definirOrigem(lat, lon, prep, rotulo, mover, escola) {
   S.lat = lat; S.lon = lon; S.prep = prep; S.rotulo = rotulo; S.origem = escola || null;
-  marcarOrigem(mover);
+  if (mapa) {
+    if (marcOrig) mapa.removeLayer(marcOrig);
+    marcOrig = L.circleMarker([lat, lon], { radius: 8, color: '#E02B2B', weight: 3, fillColor: '#fff', fillOpacity: 1 })
+      .addTo(mapa).bindTooltip('Partida: ' + rotulo, { direction: 'top' });
+    if (mover) mapa.setView([lat, lon], 13);
+  }
   calcular();
 }
 
@@ -795,8 +673,7 @@ function render() {
     oc.innerHTML = `<span class="rot">Ponto de partida</span>
       <h3>${esc(titulo(o.n))}</h3>
       <p class="end">${esc(o.end ? o.end.replace(/, Teresina.*$/, '') : titulo(o.bl || '—'))} · ${esc(o.gre.replace(/^\d+ª - /, ''))}${o.mat ? ' · ' + o.mat.toLocaleString('pt-BR') + ' matrículas' : ''}</p>
-      ${gestaoHTML(o)}
-      <div class="acoes">${linkFora(urlMapa(o), 'Ver no mapa')}</div>`;
+      ${gestaoHTML(o)}`;
     oc.hidden = false;
   } else oc.hidden = true;
 
@@ -819,9 +696,9 @@ function render() {
           ${gestaoHTML(e)}
           <div class="tags">${tags}</div>
           <div class="acoes">
-            ${linkFora(urlMapa(e), 'Ver no mapa')}
-            <span class="sep">|</span>
-            ${linkFora(urlRota(e), 'Ver rota')}
+            <a href="https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lon}" target="_blank" rel="noopener">Abrir no mapa</a>
+            <s>|</s>
+            <a href="https://www.google.com/maps/dir/?api=1&origin=${S.lat},${S.lon}&destination=${e.lat},${e.lon}" target="_blank" rel="noopener">Ver rota</a>
           </div>
         </div></li>`;
     }).join('');
@@ -873,8 +750,7 @@ function fichaHTML(e, d) {
         ${f ? `<span><span class="rot">Contato</span> ${f}</span>` : ''}
       </span>` : ''}
     <span class="acs">
-      ${linkFora(urlMapa(e), 'Ver no mapa')}
-      ${(S.lat !== null && d != null) ? linkFora(urlRota(e), 'Ver rota') : ''}
+      <a href="https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lon}" target="_blank" rel="noopener">Google Maps</a>
       ${idx >= 0 ? `<a href="#" onclick="partirDe(${idx});return false">Escolas perto daqui</a>` : ''}
     </span></div>`;
 }
@@ -911,30 +787,15 @@ function desenharMapa() {
     dashArray: '5 4', fillColor: '#1351B4', fillOpacity: .05
   }).addTo(mapa);
 
-  // com poucos resultados dá para nomear todo mundo; com muitos, só o pódio,
-  // senão os rótulos se atropelam e o mapa fica ilegível
-  const nomeiaTodos = S.res.length <= 12;
-
   S.res.forEach((e, i) => {
-    const top = i < 3;
-    const marca = L.marker([e.lat, e.lon], {
-      icon: L.divIcon({
-        className: '',
-        html: `<span class="pino-n${top ? ' top' : ''}" style="background:${corBairro(e.b)}">${i + 1}</span>`,
-        iconSize: top ? [30, 30] : [26, 26],
-        iconAnchor: top ? [15, 15] : [13, 13]
-      }),
-      title: titulo(e.n) + ' — ' + fmtKm(e.d)
+    L.circleMarker([e.lat, e.lon], {
+      radius: i < 3 ? 8 : 6, weight: i < 3 ? 3 : 1.5,
+      color: i < 3 ? '#DB9B22' : '#fff',
+      fillColor: corBairro(e.b), fillOpacity: 1
     }).addTo(camadaEsc)
+      .bindTooltip(`<b>${i + 1}. ${titulo(e.n)}</b><br>${fmtKm(e.d)}`, { direction: 'top' })
       .bindPopup(fichaHTML(e, e.d), { maxWidth: 290, className: 'pop' })
       .on('click', () => focar(i));
-
-    if (top || nomeiaTodos) {
-      marca.bindTooltip(`${titulo(e.n)} · ${fmtKm(e.d)}`, {
-        permanent: true, direction: 'right', className: 'rot-mapa',
-        offset: [top ? 17 : 15, 0], opacity: 1
-      });
-    }
   });
   mapa.fitBounds(circulo.getBounds(), { padding: [16, 16] });
 }
@@ -986,9 +847,7 @@ $('btCsv').onclick = () => {
 /* mostra o estado real do mapa — serve de diagnóstico se algo não desenhar */
 function notaMapa(n, texto) {
   const el = $('mapa');
-  const modo = mapa ? 'OpenStreetMap'
-    : (mapaFalhou ? 'mapa esquemático — o servidor de mapas não respondeu nesta rede'
-                  : 'mapa esquemático (carregando o mapa…)');
+  const modo = mapa ? 'OpenStreetMap' : 'mapa esquemático (sem rede)';
   $('notaMapa').textContent = n + ' pinos · ' + modo + '. ' + texto;
 }
 
@@ -1019,63 +878,20 @@ function desenharMapaSVG() {
 
   let corpo = '';
   if (semOrigem) {
-    // sem mapa de fundo, o nome do bairro é a única referência geográfica que
-    // temos — e ela sai da própria base. Só os bairros com mais de uma unidade,
-    // senão vira uma nuvem de texto.
-    const grupos = {};
-    lista.forEach(e => {
-      if (!e.b) return;
-      (grupos[e.b] = grupos[e.b] || { la: 0, lo: 0, n: 0, bl: e.bl }).la += e.lat;
-      grupos[e.b].lo += e.lon; grupos[e.b].n++;
-    });
-    // Teresina é densa no centro: sem controle de colisão os nomes viram um
-    // borrão. Vamos dos bairros com mais unidades para os com menos e só
-    // desenhamos o que não encosta em nada já desenhado.
-    const caixas = [];
-    const nomes = Object.keys(grupos)
-      .filter(k => grupos[k].n > 1)
-      .sort((a, b) => grupos[b].n - grupos[a].n)
-      .map(k => {
-        const g = grupos[k], txt = titulo(g.bl);
-        const X = px(g.lo / g.n), Y = py(g.la / g.n) - 9;
-        const larg = txt.length * 5.4, alt = 12;
-        const cx = { x1: X - larg / 2, x2: X + larg / 2, y1: Y - alt, y2: Y + 3 };
-        const bate = caixas.some(c => !(cx.x2 < c.x1 || cx.x1 > c.x2 || cx.y2 < c.y1 || cx.y1 > c.y2));
-        if (bate || cx.x1 < 2 || cx.x2 > W - 2) return '';
-        caixas.push(cx);
-        return `<text x="${X.toFixed(1)}" y="${Y.toFixed(1)}" text-anchor="middle"
-          font-family="system-ui,sans-serif" font-size="9.5" font-weight="600"
-          fill="#5C6A78" stroke="#EEF1F4" stroke-width="2.5" paint-order="stroke"
-          pointer-events="none">${esc(txt)}</text>`;
-      }).join('');
-    corpo = nomes + lista.map((e, i) =>
+    corpo = lista.map((e, i) =>
       `<g class="pin" data-i="${i}"><title>${esc(titulo(e.n))} — ${esc(titulo(e.bl) || 'sem bairro')}</title>
-        <circle cx="${px(e.lon).toFixed(1)}" cy="${py(e.lat).toFixed(1)}" r="5"
-          fill="${corBairro(e.b)}" stroke="#fff" stroke-width="1.4"/></g>`).join('');
+        <circle cx="${px(e.lon).toFixed(1)}" cy="${py(e.lat).toFixed(1)}" r="4.5"
+          fill="${corBairro(e.b)}" stroke="#fff" stroke-width="1.2"/></g>`).join('');
   } else {
     const fundo = DB.escolas.map(e =>
       `<circle cx="${px(e.lon).toFixed(1)}" cy="${py(e.lat).toFixed(1)}" r="1.6" fill="#C6CCC0"/>`).join('');
     const anel = `<circle cx="${px(S.lon).toFixed(1)}" cy="${py(S.lat).toFixed(1)}" r="${(S.raio * kmLon * escala).toFixed(1)}"
         fill="#1351B4" fill-opacity=".05" stroke="#1351B4" stroke-width="1.5" stroke-dasharray="5 4"/>`;
-    const nomeiaTodos = lista.length <= 12;
-    const pinos = lista.map((e, i) => {
-      const X = px(e.lon), Y = py(e.lat), top = i < 3, r = top ? 11 : 9;
-      const rotulo = (top || nomeiaTodos)
-        ? `<text x="${(X + r + 4).toFixed(1)}" y="${(Y + 4).toFixed(1)}" font-family="system-ui,sans-serif"
-             font-size="10.5" font-weight="600" fill="#111A24" stroke="#fff" stroke-width="3"
-             paint-order="stroke">${esc(titulo(e.n))}</text>` : '';
-      return `<g class="pin" data-i="${i}"><title>${i + 1}. ${esc(titulo(e.n))} — ${fmtKm(e.d)}</title>
-        <circle cx="${X.toFixed(1)}" cy="${Y.toFixed(1)}" r="${r}"
-          fill="${corBairro(e.b)}" stroke="${top ? '#DB9B22' : '#fff'}" stroke-width="${top ? 3 : 2}"/>
-        <text x="${X.toFixed(1)}" y="${(Y + 4).toFixed(1)}" text-anchor="middle"
-          font-family="system-ui,sans-serif" font-size="${top ? 12 : 11}" font-weight="700"
-          fill="#fff" pointer-events="none">${i + 1}</text>${rotulo}</g>`;
-    }).join('');
-    // anel vazado: quando o ponto de partida cai em cima de uma escola, o pino
-    // numerado dela continua visível por dentro
-    const OX = px(S.lon).toFixed(1), OY = py(S.lat).toFixed(1);
-    const orig = `<circle cx="${OX}" cy="${OY}" r="15" fill="none" stroke="#E02B2B" stroke-width="2.5"/>
-      <circle cx="${OX}" cy="${OY}" r="2.5" fill="#E02B2B"/>`;
+    const pinos = lista.map((e, i) =>
+      `<g class="pin" data-i="${i}"><title>${i + 1}. ${esc(titulo(e.n))} — ${fmtKm(e.d)}</title>
+        <circle cx="${px(e.lon).toFixed(1)}" cy="${py(e.lat).toFixed(1)}" r="${i < 3 ? 6 : 4.5}"
+          fill="${corBairro(e.b)}" stroke="${i < 3 ? '#DB9B22' : '#fff'}" stroke-width="${i < 3 ? 3 : 1.5}"/></g>`).join('');
+    const orig = `<circle cx="${px(S.lon).toFixed(1)}" cy="${py(S.lat).toFixed(1)}" r="6" fill="#fff" stroke="#E02B2B" stroke-width="3"/>`;
     corpo = fundo + anel + pinos + orig;
   }
 
@@ -1103,9 +919,8 @@ function desenharMapaSVG() {
   el.onclick = ev => { if (!ev.target.closest('.pin, #fichaSvg')) cai.hidden = true; };
 }
 
-/* panorama inicial: desenha já com o esquemático e vai buscar o mapa real */
+/* panorama inicial: toda a rede, uma cor por bairro */
 calcular();
-carregarLeaflet(0);
 </script>
 </body>
 </html>
