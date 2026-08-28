@@ -49,16 +49,14 @@ O brasão é um SVG desenhado no próprio arquivo. Para usar a arte oficial, pre
 a constante `BRASAO_URL` no início do script do `Index.html` — com uma URL pública
 ou um `data:image/png;base64,...` — que o SVG é substituído automaticamente.
 
-**O mapa fica pequeno, no canto superior direito**, acima da Resposta Pronta. Ele
-serve de referência visual, não de ferramenta principal: quem decide é a lista.
-Cada pino continua clicável e abre a ficha da escola.
+O mapa é um painel de 400x250 no canto superior direito. Ele serve de referência
+visual; quem decide é a lista. Cada pino continua clicável e abre a ficha.
 
-**Ver no mapa e Ver rota** abrem o Google Maps por `window.open`, e não pelo
-clique direto no link: dentro do iframe do Apps Script o clique comum às vezes é
-interceptado pelo wrapper do Google e termina numa página de erro do Drive. Se o
-navegador bloquear a janela, a própria aba navega para o destino. O endereço
-continua no `href`, então copiar o link e abrir em nova aba pelo teclado seguem
-funcionando.
+**Ver rota** usa o formato de caminho do Google Maps (`/maps/dir/lat,lon/lat,lon`),
+sem query string. O formato `?api=1&origin=...&destination=...` caía numa página
+de erro do Drive quando aberto de dentro do iframe do Apps Script — enquanto o
+link de **Ver no mapa**, que tem um único parâmetro, sempre funcionou. Sem query
+string não há o que ser reescrito no caminho.
 
 ### 2. Gestor e contato (colunas AN e AM)
 `NOME DO GESTOR` e `CONTATO` agora aparecem:

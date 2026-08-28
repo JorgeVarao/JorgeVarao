@@ -87,10 +87,10 @@ input[type=range]{width:100%;accent-color:var(--azul);margin:0}
 .limpar:hover{color:var(--vermelho)}
 
 /* ---------- mapa ---------- */
-#mapa{height:240px;border:1px solid var(--borda);border-radius:12px;background:#fff;overflow:hidden;z-index:0;position:relative;box-shadow:var(--sombra)}
+#mapa{height:250px;width:400px;max-width:100%;margin-left:auto;border:1px solid var(--borda);border-radius:12px;background:#fff;overflow:hidden;z-index:0;position:relative;box-shadow:var(--sombra)}
 #mapa svg{display:block;width:100%;height:100%}
 #mapa .pin{cursor:pointer}
-.mapa-nota{font-size:11.5px;color:var(--texto3);margin:7px 2px 16px;line-height:1.4}
+.mapa-nota{font-size:11.5px;color:var(--texto3);margin:7px 2px 0;line-height:1.4;max-width:400px;margin-left:auto;text-align:right}
 
 /* ---------- placar ---------- */
 .placar{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin:22px 0 16px}
@@ -100,7 +100,8 @@ input[type=range]{width:100%;accent-color:var(--azul);margin:0}
 
 /* ---------- resultados ---------- */
 .resultados{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:26px;align-items:start}
-body.sem-origem .saida-col h2,body.sem-origem .saida{display:none}
+body.sem-origem .resultados{grid-template-columns:minmax(0,1fr)}
+body.sem-origem .saida-col{display:none}
 ol.lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:16px}
 .rank{font-size:13px;font-weight:700;color:var(--azul);margin-bottom:6px;letter-spacing:.01em}
 .cartao{background:var(--card);border:1px solid var(--borda);border-radius:12px;padding:17px 19px;box-shadow:var(--sombra);transition:.14s}
@@ -172,14 +173,14 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
   .app{grid-template-columns:1fr}
   .painel{position:static}
   .resultados{grid-template-columns:minmax(0,1fr)}
-  .saida-col{position:static;order:-1}
-  #mapa{height:300px}
+  .saida-col{position:static}
+  #mapa{height:260px;width:100%}
 }
 @media (max-width:620px){
   .topo-in,.app,.rodape{padding-left:14px;padding-right:14px}
   .orgs{gap:10px}
   .orgs .brasao,.orgs .brasao img{width:40px}
-  #mapa{height:240px}
+  #mapa{height:220px;width:100%}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -320,6 +321,9 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
 
   <!-- ========================== CONTEÚDO ========================== -->
   <section>
+    <div id="mapa"></div>
+    <p class="mapa-nota" id="notaMapa">Clique em qualquer ponto do mapa para recalcular a partir dali. O círculo marca o raio de busca.</p>
+
     <div class="placar">
       <span class="num" id="nQtd">—</span>
       <span class="txt" id="nTxt">selecione um ponto de partida</span>
@@ -331,8 +335,6 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
         <ol class="lista" id="lista"></ol>
       </div>
       <aside class="saida-col">
-        <div id="mapa"></div>
-        <p class="mapa-nota" id="notaMapa">Clique num ponto do mapa para recalcular a partir dali.</p>
         <h2>Resposta Pronta</h2>
         <div class="saida">
           <pre id="txtSaida">—</pre>
@@ -423,27 +425,6 @@ const fmtKmC = k => k < 1 ? Math.round(k * 1000) + 'm'  : k.toFixed(1).replace('
 const fmtRaio = () => S.raio.toFixed(1).replace('.', ',') + 'km';
 const esc = t => String(t == null ? '' : t)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-/* ====== abrir link fora do iframe ======
-   A página roda dentro do iframe isolado do Apps Script. Nesse contexto o
-   clique num <a target="_blank"> às vezes é interceptado pelo wrapper do
-   Google e termina numa página de erro do Drive em vez de ir ao destino. Por
-   isso a navegação passa por window.open, com dois planos B. O href continua
-   no elemento, então copiar o endereço e abrir em nova aba pelo teclado
-   seguem funcionando normalmente. */
-function abrirFora(url) {
-  var j = null;
-  try { j = window.open(url, '_blank', 'noopener'); } catch (e) {}
-  if (j) return false;
-  try { window.top.location.href = url; return false; } catch (e) {}  // popup bloqueado
-  location.href = url;                                                // último recurso
-  return false;
-}
-const urlMapa = e => `https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lon}`;
-const urlRota = e => `https://www.google.com/maps/dir/?api=1&origin=${S.lat},${S.lon}` +
-                     `&destination=${e.lat},${e.lon}&travelmode=driving`;
-const linkFora = (url, texto) =>
-  `<a href="${url}" target="_blank" rel="noopener" onclick="return abrirFora(this.href)">${texto}</a>`;
 
 const ACR = new Set(['CETI','CEJA','EJA','GRE','SEDUC','IFPI','CMEI','APAE','EPT','CEM','CEF',
   'CEIP','SESI','SENAI','CSU','CPM','UE','EEM','ETI','UAB','UAPI','II','III','IV','IX','XI','XII','XV','XX','PI']);
@@ -692,8 +673,7 @@ function render() {
     oc.innerHTML = `<span class="rot">Ponto de partida</span>
       <h3>${esc(titulo(o.n))}</h3>
       <p class="end">${esc(o.end ? o.end.replace(/, Teresina.*$/, '') : titulo(o.bl || '—'))} · ${esc(o.gre.replace(/^\d+ª - /, ''))}${o.mat ? ' · ' + o.mat.toLocaleString('pt-BR') + ' matrículas' : ''}</p>
-      ${gestaoHTML(o)}
-      <div class="acoes">${linkFora(urlMapa(o), 'Ver no mapa')}</div>`;
+      ${gestaoHTML(o)}`;
     oc.hidden = false;
   } else oc.hidden = true;
 
@@ -716,9 +696,9 @@ function render() {
           ${gestaoHTML(e)}
           <div class="tags">${tags}</div>
           <div class="acoes">
-            ${linkFora(urlMapa(e), 'Ver no mapa')}
+            <a href="https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lon}" target="_blank" rel="noopener">Ver no mapa</a>
             <s>|</s>
-            ${linkFora(urlRota(e), 'Ver rota')}
+            <a href="https://www.google.com/maps/dir/${S.lat},${S.lon}/${e.lat},${e.lon}" target="_blank" rel="noopener">Ver rota</a>
           </div>
         </div></li>`;
     }).join('');
@@ -770,8 +750,7 @@ function fichaHTML(e, d) {
         ${f ? `<span><span class="rot">Contato</span> ${f}</span>` : ''}
       </span>` : ''}
     <span class="acs">
-      ${linkFora(urlMapa(e), 'Ver no mapa')}
-      ${(S.lat !== null && d != null) ? linkFora(urlRota(e), 'Ver rota') : ''}
+      <a href="https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lon}" target="_blank" rel="noopener">Ver no mapa</a>
       ${idx >= 0 ? `<a href="#" onclick="partirDe(${idx});return false">Escolas perto daqui</a>` : ''}
     </span></div>`;
 }
