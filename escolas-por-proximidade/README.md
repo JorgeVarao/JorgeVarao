@@ -76,7 +76,25 @@ pela letra da coluna (`AM` e `AN`). Ou seja: renomear o cabeçalho não quebra a
 leitura. O menu **Geo-Escolas > Conferir colunas de gestor/contato** mostra de qual
 coluna o script está lendo e quantas linhas estão preenchidas.
 
-### 3. Distância a partir de uma escola específica
+### 3. Todos os bairros da cidade, inclusive os sem escola
+
+A aba `bairros_teresina_coordenadas` da planilha traz a relação oficial dos
+bairros de Teresina com coordenada. O seletor passa a listar a cidade inteira,
+agrupada por zona e dizendo quantas escolas cada bairro tem — **incluindo os que
+têm zero**, que são justamente os que dependem do raio para achar as vizinhas.
+
+Quando o bairro está nas duas fontes, a coordenada oficial ganha: ela é o centro
+do bairro, não a média das escolas dele. Bairro que só existe na base (povoados,
+Dirceu, Santa Maria da Codipi…) continua usando o centro geométrico das
+unidades. As fórmulas de planilha seguem a mesma regra.
+
+**Atenção às colunas `latitude` e `longitude` dessa aba:** elas chegaram com o
+ponto decimal perdido (`-5.0824259` virou `-50824259`, porque o Sheets leu o
+ponto como separador de milhar). O código lê a coluna **`lat_lon`**, que está
+correta, e só aceita `latitude`/`longitude` se estiverem dentro da faixa válida
+— ou seja, volta a usá-las sozinho no dia em que forem corrigidas.
+
+### 4. Distância a partir de uma escola específica
 A pergunta “escolas a X km da escola Y” virou um modo próprio.
 
 **Na página:** aba **Por Escola** no painel de Localização. Digite parte do nome

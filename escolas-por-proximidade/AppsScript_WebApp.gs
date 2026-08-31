@@ -41,18 +41,19 @@ function doGet() {
 /** Cache de 10 min: evita reler a planilha inteira a cada visita. */
 function dadosApp() {
   var cache = CacheService.getScriptCache();
-  var hit = cache.get('dadosApp_v2');            // v2: passou a carregar gestor e contato
+  var hit = cache.get('dadosApp_v3');            // v3: passou a carregar a relação de bairros
   if (hit) return hit;
   var js = JSON.stringify(_montarDados_());
-  try { cache.put('dadosApp_v2', js, 600); } catch (e) {}  // >100KB não cabe: segue sem cache
+  try { cache.put('dadosApp_v3', js, 600); } catch (e) {}  // >100KB não cabe: segue sem cache
   return js;
 }
 
 /** Força atualização imediata depois de editar a planilha. */
 function LIMPAR_CACHE() {
   var c = CacheService.getScriptCache();
+  c.remove('dadosApp_v3');
   c.remove('dadosApp_v2');
-  c.remove('dadosApp_v1');                       // resto da versão anterior, se houver
+  c.remove('dadosApp_v1');                       // restos das versões anteriores
   SpreadsheetApp.getUi().alert('Cache limpo. A página já reflete a planilha atual.');
 }
 
@@ -65,6 +66,78 @@ var _CORR = {
   'POTY VELHO': 'POTI VELHO'
 };
 var _LIXO = { 'TERESINA': 1, 'PI, 64017-772': 1 };
+
+/**
+ * Aba com a relação oficial dos bairros de Teresina e suas coordenadas. É ela
+ * que permite partir de um bairro onde não existe escola nenhuma.
+ */
+var CFG_BAIRROS = {
+  ABA:        'bairros_teresina_coordenadas',
+  COL_NOME:   'bairro',
+  COL_CHAVE:  'bairro_chave',
+  COL_ZONA:   'zona',
+  COL_LAT:    'latitude',
+  COL_LON:    'longitude',
+  COL_LATLON: 'lat_lon'
+};
+
+/** Aceita só coordenada dentro da faixa possível do planeta. */
+function _faixaOk_(lat, lon) {
+  return !isNaN(lat) && !isNaN(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+}
+
+/**
+ * Coordenada de um bairro. Lemos primeiro a coluna "lat_lon", que é texto
+ * "lat, lon" e chega inteira. As colunas "latitude"/"longitude" separadas
+ * vieram com o ponto decimal perdido — -5.0824259 virou -50824259, porque o
+ * Sheets leu o ponto como separador de milhar — então elas só são usadas se
+ * estiverem dentro da faixa válida, o que já cobre o dia em que forem
+ * corrigidas na planilha.
+ */
+function _coordBairro_(latLon, lat, lon) {
+  var m = String(latLon).match(/(-?\d+[.,]\d+)\s*[,;]\s*(-?\d+[.,]\d+)/);
+  if (m) {
+    var a = parseFloat(m[1].replace(',', '.')), o = parseFloat(m[2].replace(',', '.'));
+    if (_faixaOk_(a, o)) return [a, o];
+  }
+  var a2 = parseFloat(String(lat).replace(',', '.'));
+  var o2 = parseFloat(String(lon).replace(',', '.'));
+  return _faixaOk_(a2, o2) ? [a2, o2] : null;
+}
+
+/** Chave sem acento -> { bl: nome com acento, zona, lat, lon }. */
+function _bairrosOficiais_() {
+  var sh = SpreadsheetApp.getActive().getSheetByName(CFG_BAIRROS.ABA);
+  if (!sh) return {};                                  // aba ausente: segue sem ela
+  var v = sh.getDataRange().getValues();
+  if (v.length < 2) return {};
+  var cab = v[0].map(function (c) { return _norm_(c); });
+  function col(nome) { return cab.indexOf(_norm_(nome)); }
+  var iNome  = col(CFG_BAIRROS.COL_NOME),  iChave = col(CFG_BAIRROS.COL_CHAVE),
+      iZona  = col(CFG_BAIRROS.COL_ZONA),  iLat   = col(CFG_BAIRROS.COL_LAT),
+      iLon   = col(CFG_BAIRROS.COL_LON),   iLL    = col(CFG_BAIRROS.COL_LATLON);
+  if (iNome < 0) return {};
+
+  var out = {};
+  for (var r = 1; r < v.length; r++) {
+    var nome = String(v[r][iNome]).replace(/\s+/g, ' ').trim();
+    if (!nome) continue;
+    var par = _coordBairro_(iLL  >= 0 ? v[r][iLL]  : '',
+                            iLat >= 0 ? v[r][iLat] : '',
+                            iLon >= 0 ? v[r][iLon] : '');
+    if (!par) continue;
+    var k = _chave_((iChave >= 0 && String(v[r][iChave]).trim()) ? v[r][iChave] : nome);
+    if (_CORR[k]) k = _CORR[k];
+    if (out[k]) continue;                              // primeira grafia ganha
+    out[k] = {
+      bl: nome,
+      zona: iZona >= 0 ? String(v[r][iZona]).trim() : '',
+      lat: Math.round(par[0] * 1e5) / 1e5,
+      lon: Math.round(par[1] * 1e5) / 1e5
+    };
+  }
+  return out;
+}
 
 function _chave_(t) {
   return String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -183,17 +256,36 @@ function _montarDados_() {
     }
   }
 
-  esc.forEach(function (e) { e.bl = rotulos[e.b] || e.b; });   // rótulo com acento
+  var oficiais = _bairrosOficiais_();
 
-  var bairros = Object.keys(soma).sort().map(function (k) {
-    return {
-      b: k,
-      bl: rotulos[k] || k,
+  // rótulo com acento: o nome da relação oficial ganha do que veio da base
+  esc.forEach(function (e) {
+    e.bl = (oficiais[e.b] && oficiais[e.b].bl) || rotulos[e.b] || e.b;
+  });
+
+  // A lista de bairros junta duas fontes. Quem tem escola entra pelo centro
+  // geométrico das unidades; a relação oficial traz a cidade inteira. Estando
+  // nas duas, a coordenada oficial ganha — ela é o centro do bairro, não a
+  // média das escolas. Bairro sem escola entra com n = 0, e é exatamente para
+  // ele que a busca por raio serve.
+  var mapaB = {};
+  Object.keys(soma).forEach(function (k) {
+    mapaB[k] = {
+      b: k, bl: rotulos[k] || k, zona: '', n: soma[k].n, of: false,
       lat: Math.round(soma[k].la / soma[k].n * 1e5) / 1e5,
-      lon: Math.round(soma[k].lo / soma[k].n * 1e5) / 1e5,
-      n: soma[k].n
+      lon: Math.round(soma[k].lo / soma[k].n * 1e5) / 1e5
     };
   });
+  Object.keys(oficiais).forEach(function (k) {
+    var o = oficiais[k];
+    if (mapaB[k]) {
+      mapaB[k].lat = o.lat; mapaB[k].lon = o.lon;
+      mapaB[k].bl = o.bl;   mapaB[k].zona = o.zona; mapaB[k].of = true;
+    } else {
+      mapaB[k] = { b: k, bl: o.bl, zona: o.zona, n: 0, of: true, lat: o.lat, lon: o.lon };
+    }
+  });
+  var bairros = Object.keys(mapaB).sort().map(function (k) { return mapaB[k]; });
 
   return { escolas: esc, bairros: bairros };
 }

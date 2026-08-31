@@ -367,7 +367,18 @@ function _resolverOrigem_(origem, base) {
 
   var k = _norm_(t);
 
-  // 3) bairro — centro geométrico das unidades daquele bairro
+  // 3) bairro — coordenada oficial da aba de bairros, quando existir. É o que
+  //    faz a fórmula responder também por bairro sem escola nenhuma. A função
+  //    mora no arquivo do web app; sem ele, seguimos direto para o centro
+  //    geométrico logo abaixo.
+  if (typeof _bairrosOficiais_ === 'function') {
+    var ofs = _bairrosOficiais_();
+    for (var kk in ofs) {
+      if (_norm_(kk) === k) return { lat: ofs[kk].lat, lon: ofs[kk].lon, rotulo: 'bairro ' + ofs[kk].bl };
+    }
+  }
+
+  // 3b) sem coordenada oficial: centro geométrico das unidades daquele bairro
   var sLat = 0, sLon = 0, n = 0;
   for (var i = 0; i < base.linhas.length; i++) {
     var e = base.linhas[i];

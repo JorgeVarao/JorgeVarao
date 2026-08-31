@@ -225,7 +225,7 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
 
       <div class="painel-origem" data-modo="bairro">
         <select class="campo" id="selBairro" aria-label="Bairro de partida"></select>
-        <p class="ajuda">O ponto de partida é o centro geométrico das unidades da rede naquele bairro.</p>
+        <p class="ajuda">Todos os bairros de Teresina, inclusive os que não têm escola — para esses, aumente o raio até alcançar as vizinhas. O ponto de partida é a coordenada do bairro; onde ela não existe na base, é o centro das unidades da rede ali.</p>
       </div>
 
       <div class="painel-origem" data-modo="escola" hidden>
@@ -324,7 +324,7 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
 
 <footer class="rodape">
   <b>Como as distâncias são calculadas.</b> Cada unidade tem sua coordenada obtida da coluna <code>google PlusCode</code> da base, decodificada localmente — sem consultar nenhuma API. A distância é em <em>linha reta</em> (fórmula de Haversine). Em Teresina isso merece atenção: dois pontos separados pelo Parnaíba ou pelo Poti podem estar a 2 km em linha reta e a 8 km de percurso real, dependendo da ponte. Use a lista como triagem e confirme o trajeto quando a decisão depender disso.<br>
-  <b>Ponto de partida.</b> Por bairro = centro geométrico das unidades da rede naquele bairro. Por escola = a coordenada da própria unidade. Para um endereço específico, cole a coordenada ou clique no mapa.<br>
+  <b>Ponto de partida.</b> Por bairro = a coordenada do bairro na relação oficial da cidade; se o bairro não estiver nela, o centro geométrico das unidades da rede ali. Por escola = a coordenada da própria unidade. Para um endereço específico, cole a coordenada ou clique no mapa.<br>
   <b>Gestor e contato</b> vêm das colunas <code>NOME DO GESTOR</code> e <code>CONTATO</code> da base — informação de trabalho, para uso interno da rede.<br>
   Versão <b>v5 · 27/08/2026</b> · Base: <span id="fonteArq">planilha INEP Teresina — GDI/UGERF</span> · <span id="fonteQtd"></span> · Mapa © OpenStreetMap.
 </footer>
@@ -487,14 +487,37 @@ const elLista = $('lista'), elQtd = $('nQtd'), elTxt = $('nTxt'), elSaida = $('t
 
 /* ====== inicialização ====== */
 const sel = $('selBairro');
-sel.innerHTML = '<option value="">— Escolha um bairro —</option>' +
-  DB.bairros.map(b => `<option value="${esc(b.b)}">${esc(titulo(b.bl))} (${b.n})</option>`).join('');
+/* 128 bairros numa lista corrida é difícil de varrer, então agrupamos por zona
+   e dizemos quantas escolas cada um tem — inclusive os que têm zero, que são
+   justamente os que dependem do raio para achar escola vizinha. */
+(function montarBairros() {
+  const zonas = {};
+  DB.bairros.forEach(b => {
+    const z = b.zona || 'Sem zona informada';
+    (zonas[z] = zonas[z] || []).push(b);
+  });
+  const ordem = ['Centro', 'Norte', 'Sul', 'Leste', 'Sudeste'];
+  const chaveZona = z => { const i = ordem.indexOf(z); return i < 0 ? 99 : i; };
+  const nomes = Object.keys(zonas).sort((a, b) =>
+    chaveZona(a) - chaveZona(b) || a.localeCompare(b, 'pt-BR'));
+
+  sel.innerHTML = '<option value="">— Escolha um bairro —</option>' +
+    nomes.map(z => '<optgroup label="' + esc(z) + '">' +
+      zonas[z].slice()
+        .sort((a, b) => titulo(a.bl).localeCompare(titulo(b.bl), 'pt-BR'))
+        .map(b => {
+          const q = b.n === 0 ? 'sem escola' : (b.n === 1 ? '1 escola' : b.n + ' escolas');
+          return `<option value="${esc(b.b)}">${esc(titulo(b.bl))} · ${q}</option>`;
+        }).join('') +
+      '</optgroup>').join('');
+})();
 $('listaEscolas').innerHTML = DB.escolas.slice()
   .sort((a, b) => a.n.localeCompare(b.n, 'pt-BR'))
   .map(e => `<option value="${esc(titulo(e.n))}">`).join('');
 $('fonteQtd').textContent = DB.escolas.length + ' unidades geolocalizadas · ' +
   DB.escolas.filter(e => e.sit === 'EM ATIVIDADE').length + ' escolas em atividade · ' +
-  DB.escolas.filter(temGestao).length + ' com gestor/contato';
+  DB.escolas.filter(temGestao).length + ' com gestor/contato · ' +
+  DB.bairros.length + ' bairros (' + DB.bairros.filter(b => !b.n).length + ' sem escola)';
 
 let mapa = null, camadaEsc = null, marcOrig = null, circulo = null;
 if (window.L) {
