@@ -198,6 +198,14 @@ function _turnos_(t) {
 }
 
 function _montarDados_() {
+  // CFG, CFG_EXTRA, _plus, _norm_ e _colFlex_ moram no AppsScript_GeoEscolas.gs.
+  // Sem aquele arquivo no projeto, o erro que aparece é um "CFG is not defined"
+  // apontando para cá, que não diz o que fazer. Este aviso diz.
+  if (typeof CFG === 'undefined') {
+    throw new Error('Falta o arquivo AppsScript_GeoEscolas.gs no projeto (ou ele não foi salvo). ' +
+      'É nele que ficam CFG, CFG_EXTRA e as funções de Plus Code que este arquivo usa. ' +
+      'Cole-o como um arquivo de script à parte, salve, e implante de novo.');
+  }
   var sh = SpreadsheetApp.getActive().getSheetByName(CFG.ABA);
   if (!sh) return { escolas: [], bairros: [] };
   var v = sh.getDataRange().getValues();
