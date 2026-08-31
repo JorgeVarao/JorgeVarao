@@ -38,8 +38,6 @@ a{color:var(--azul)}
 .orgs .g1{font-weight:700;text-align:right;font-size:11.5px}
 .orgs .g2{font-weight:600;text-align:center;color:var(--texto2)}
 .orgs .g3{font-weight:800;font-size:13px;letter-spacing:-.01em}
-.orgs .brasao{display:block;width:52px;height:auto}
-.orgs .brasao img{display:block;width:52px;height:auto}
 
 /* ---------- estrutura ---------- */
 .app{max-width:1460px;margin:0 auto;padding:24px 26px 56px;display:grid;grid-template-columns:388px minmax(0,1fr);gap:26px;align-items:start}
@@ -179,7 +177,6 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
 @media (max-width:620px){
   .topo-in,.app,.rodape{padding-left:14px;padding-right:14px}
   .orgs{gap:10px}
-  .orgs .brasao,.orgs .brasao img{width:40px}
   #mapa{height:220px;width:100%}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -206,30 +203,6 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
     <div class="orgs">
       <span class="g1">Gerência de Dados<br>de Infraestrutura</span>
       <span class="g2">Secretaria da<br>Educação – SEDUC</span>
-      <!-- Brasão: para usar a arte oficial, preencha BRASAO_URL no script
-           (URL pública ou data:image/png;base64,...) que este SVG é trocado. -->
-      <span class="brasao" id="brasao" aria-label="Brasão do Estado do Piauí">
-        <svg viewBox="0 0 76 92" role="img" aria-hidden="true">
-          <defs><clipPath id="bp"><ellipse cx="38" cy="38" rx="30" ry="33"/></clipPath></defs>
-          <ellipse cx="38" cy="38" rx="30" ry="33" fill="#DCE9F2"/>
-          <g clip-path="url(#bp)">
-            <rect x="0" y="45" width="76" height="45" fill="#1A8F3C"/>
-            <path d="M0 45 Q19 37 38 44 Q57 51 76 43 L76 49 L0 49Z" fill="#12702E"/>
-            <g stroke="#0E5A25" stroke-width="1.7" fill="none" stroke-linecap="round">
-              <path d="M26 53 C26 46 25 41 24 36"/>
-              <path d="M24 36 C20.5 33.5 17 33.5 14.5 35.5"/><path d="M24 36 C27.5 33.5 31 33.5 33.5 35.5"/>
-              <path d="M24 36 C21.5 31.5 18 29.5 15 29.5"/><path d="M24 36 C26.5 31.5 30 29.5 33 29.5"/>
-              <path d="M51 55 C51 48 52 43 53 38"/>
-              <path d="M53 38 C49.5 35.5 46 35.5 43.5 37.5"/><path d="M53 38 C56.5 35.5 60 35.5 62.5 37.5"/>
-              <path d="M53 38 C50.5 33.5 47 31.5 44 31.5"/><path d="M53 38 C55.5 33.5 59 31.5 62 31.5"/>
-            </g>
-            <path d="M38 12.5 L39.8 17.6 L45.1 17.7 L40.9 20.9 L42.4 26.1 L38 23 L33.6 26.1 L35.2 20.9 L30.9 17.7 L36.2 17.6 Z" fill="#F2C230"/>
-          </g>
-          <ellipse cx="38" cy="38" rx="30" ry="33" fill="none" stroke="#0B3B8C" stroke-width="3"/>
-          <path d="M5 66 Q38 85 71 66 L71 74 Q38 93 5 74 Z" fill="#1351B4"/>
-          <path d="M5 66 Q38 85 71 66" fill="none" stroke="#0B3B8C" stroke-width="1.2"/>
-        </svg>
-      </span>
       <span class="g3">Governo do<br>Estado do Piauí</span>
     </div>
   </div>
@@ -364,11 +337,6 @@ li.item.sel .cartao{border-color:var(--azul);box-shadow:0 0 0 3px rgba(19,81,180
 const DB = <?!= dadosApp() ?>;
 </script>
 <script>
-/* ====== brasão: troque por arte oficial se quiser ====== */
-const BRASAO_URL = '';   /* URL publica da arte, ou data:image/png;base64,... */
-if (BRASAO_URL) document.getElementById('brasao').innerHTML =
-  '<img src="' + BRASAO_URL + '" alt="Brasão do Estado do Piauí">';
-
 /* ====== Plus Code (Open Location Code) — decodificação local, sem API ====== */
 const OA = '23456789CFGHJMPQRVWX';
 const REF = { lat: -5.0892, lng: -42.8019 };           /* âncora: centro de Teresina */
@@ -649,6 +617,16 @@ function gestaoHTML(e) {
     </div>`;
 }
 
+function urlMapa(lat, lon) {
+  return 'https://www.google.com/maps?q=' +
+    encodeURIComponent(lat + ',' + lon);
+}
+
+function urlRota(origLat, origLon, destLat, destLon) {
+  return 'https://www.google.com/maps/dir/?api=1' +
+    '&origin=' + encodeURIComponent(origLat + ',' + origLon) +
+    '&destination=' + encodeURIComponent(destLat + ',' + destLon);
+}
 function render() {
   document.body.classList.toggle('sem-origem', S.lat === null);
 
@@ -696,9 +674,9 @@ function render() {
           ${gestaoHTML(e)}
           <div class="tags">${tags}</div>
           <div class="acoes">
-            <a href="https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lon}" target="_blank" rel="noopener">Ver no mapa</a>
-            <s>|</s>
-            <a href="https://www.google.com/maps/dir/${S.lat},${S.lon}/${e.lat},${e.lon}" target="_blank" rel="noopener">Ver rota</a>
+            <a href="${urlMapa(e.lat, e.lon)}" target="_blank">Ver no mapa</a>
+            <span>|</span>
+            <a href="${urlRota(S.lat, S.lon, e.lat, e.lon)}" target="_blank">Ver rota</a>
           </div>
         </div></li>`;
     }).join('');
