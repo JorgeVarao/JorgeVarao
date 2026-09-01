@@ -84,7 +84,9 @@ nI nM nT nN efI efM efT efN s1 s2 s3
 s1I s1M s1T s1N s2I s2M s2T s2N s3I s3M s3T s3N
 outrosEM outrosI outrosM outrosT outrosN ejI ejM ejT ejN
 ef9Turmas ef9Matriculas ef8Turmas ef8Matriculas
-aeeTurmas aeeMatriculas ejaAnexoTurmas ejaAnexoMatriculas""".split()
+aeeTurmas aeeMatriculas ejaAnexoTurmas ejaAnexoMatriculas
+turmasZeradas ejaMatrizTurmas ejaMatrizEntm
+ejI ejM ejT ejN ejMatrizI ejMatrizM ejMatrizT ejMatrizN""".split()
 
 class Unidade(object):
     def __init__(self, inep, escola, anexo, meta):
@@ -95,6 +97,7 @@ class Unidade(object):
         self.escolaProxima = meta.get("escolaProxima", "")
         self.tipoAnexo = classificar_anexo(anexo)
         self.emLinhas, self.ejaLinhas, self.efLinhas = [], [], []
+        self.ejaMatrizLinhas, self.linhasZeradas = [], []
         self.outrasLinhas, self.parciais = [], []
         self.cursos = {}          # fusão dentro da própria unidade
         self.cursos1a = {}        # cursos da 1ª série (para fusão entre escolas)
@@ -129,6 +132,14 @@ def acumular_turma(e, r, anexo=""):
     turmas  = numero_(r[9] if len(r) > 9 else 0)
     if turmas == 0 and entm == 0 and not curso and not etapa: return
 
+    # Turma declarada sem nenhuma matrícula não é turma: não aparece na oferta
+    # nem entra em contagem alguma. Fica registrada só para conferência.
+    if entm == 0 and turmas > 0:
+        e.turmasZeradas += turmas
+        e.linhasZeradas.append("%s - %s (%s) - %d turma(s) sem matrícula"
+                               % (etapa, curso, turno, turmas))
+        return
+
     cU, eU, tU = curso.upper(), etapa.upper(), turno.upper()
     ehEJA = ("EJA" in eU) or ("EJA" in cU)
     ehAEE = bool(RE_AEE.search(etapa) or RE_AEE.search(curso))
@@ -146,12 +157,17 @@ def acumular_turma(e, r, anexo=""):
 
     # ---------------------------------------------------------------- EJA
     if ehEJA:
+        local = classificar_anexo(anexo)
         e.ejaLinhas.append(txt)
         e.totalEJA += turmas
         e.totalEJAentm += entm
         e.soma_turno("ej", tU, turmas)
-        # UEJA — separa o que está em anexo / sala externa
-        local = classificar_anexo(anexo)
+        # a oferta do prédio matriz é contada à parte da que está em anexo
+        if local == "MATRIZ":
+            e.ejaMatrizLinhas.append(txt)
+            e.ejaMatrizTurmas += turmas
+            e.ejaMatrizEntm += entm
+            e.soma_turno("ejMatriz", tU, turmas)
         d = e.ejaPorLocal.setdefault(local, {"turmas": 0, "entm": 0, "cursos": {}, "nomes": set()})
         d["turmas"] += turmas; d["entm"] += entm
         d["cursos"][curso] = d["cursos"].get(curso, 0) + turmas
@@ -208,6 +224,11 @@ def acumular_turma(e, r, anexo=""):
 
 # ------------------------------------------------------------- projeção 2027
 
+def so_eja(e):
+    """Unidade cuja oferta inteira é EJA — uma CEJA. Aí a EJA define a sala."""
+    return e.totalEJA > 0 and e.emTotal == 0 and e.efTotal == 0
+
+
 def projetar_2027(e, uetep_turmas=0):
     """1ª 2027 = 1ª atual · 2ª 2027 = 1ª atual · 3ª 2027 = 2ª atual.
        Sala: integral ocupa o dia todo, manhã e tarde dividem, noite à parte.
@@ -217,6 +238,12 @@ def projetar_2027(e, uetep_turmas=0):
     m27 = e.s1M + e.s1M + e.s2M + e.outrosM + e.efM
     t27 = e.s1T + e.s1T + e.s2T + e.outrosT + e.efT
     n27 = e.s1N + e.s1N + e.s2N + e.outrosN + e.efN
+    if so_eja(e):
+        # CEJA: não há oferta diurna para dividir sala, então a EJA é a sala.
+        i27 += e.ejMatrizI
+        m27 += e.ejMatrizM
+        t27 += e.ejMatrizT
+        n27 += e.ejMatrizN
     salas = i27 + max(m27, t27) + n27
     total27 = pro1 + pro2 + pro3 + e.outrosEM + uetep_turmas
     return {"pro1": pro1, "pro2": pro2, "pro3": pro3,
@@ -234,11 +261,14 @@ def montar_oferta_em(e):
     return "\n".join(sorted(e.emLinhas)) + "\nTurmas: " + (" | ".join(res) if res else "0")
 
 def montar_oferta_eja(e):
-    if not e.ejaLinhas: return "—"
+    """Só a EJA do prédio matriz. O que está em anexo aparece na coluna da UEJA."""
+    if not e.ejaMatrizLinhas: return "—"
     res = []
-    for q, r in ((e.ejI, "Integral"), (e.ejM, "Manhã"), (e.ejT, "Tarde"), (e.ejN, "Noite")):
+    for q, r in ((e.ejMatrizI, "Integral"), (e.ejMatrizM, "Manhã"),
+                 (e.ejMatrizT, "Tarde"), (e.ejMatrizN, "Noite")):
         if q > 0: res.append("%d %s" % (q, r))
-    return "\n".join(sorted(e.ejaLinhas)) + "\nTurmas EJA: " + (" | ".join(res) if res else "0")
+    return ("\n".join(sorted(e.ejaMatrizLinhas)) + "\nTurmas EJA no prédio matriz: "
+            + (" | ".join(res) if res else "0"))
 
 def montar_fusoes(e):
     """Fusão apenas dentro da própria unidade (mesmo curso/etapa/turno/org/período)."""

@@ -124,7 +124,8 @@ def base_ueja(matrizes, ordem_m):
             cursos = " · ".join("%s (%dT)" % (c, t) for c, t in
                                 sorted(d["cursos"].items(), key=lambda x: -x[1]))
             nomes = " / ".join(sorted(d["nomes"])) if d["nomes"] else "—"
-            linhas.append([int(i), e.gre, e.municipio, e.escola, ROTULO_LOCAL.get(local, local),
+            linhas.append([int(i), e.gre, norm(e.municipio), e.escola,
+                           ROTULO_LOCAL.get(local, local),
                            nomes, int(d["turmas"]), int(d["entm"]), cursos,
                            "NÃO" if local == "MATRIZ" else "SIM"])
             if local != "MATRIZ":

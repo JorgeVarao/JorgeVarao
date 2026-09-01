@@ -43,6 +43,7 @@ function aba(nome, linhas) {
       return faixa(bloco, sh, r, c, nr, nc);
     },
     clear: () => { sh._d = []; return sh; },
+    hideSheet: () => sh, showSheet: () => sh,
     getFilter: () => null, setFrozenRows: () => sh, setColumnWidth: () => sh,
   };
   return sh;
@@ -58,8 +59,9 @@ const ineps = gsSaida["Base Tratada"].linhas.map(r => r[0]);
 abas["Reordenamento 2027 V2"] = aba("Reordenamento 2027 V2",
   [new Array(38).fill("")].concat(ineps.map(i => { const L=new Array(38).fill(""); L[0]=i; return L; })));
 abas["Reordenamento 2027 V3"] = aba("Reordenamento 2027 V3",
-  [new Array(48).fill("")].concat(ineps.map(i => { const L=new Array(48).fill(""); L[0]=i; return L; })));
+  [new Array(51).fill("")].concat(ineps.map(i => { const L=new Array(51).fill(""); L[0]=i; return L; })));
 abas["Fusão Turmas"] = aba("Fusão Turmas", new Array(63).fill(0).map(()=>new Array(18).fill("")));
+abas["IDEB - ESCOLAS"] = aba("IDEB - ESCOLAS", new Array(531).fill(0).map(()=>new Array(6).fill("")));
 
 const ss = { getSheetByName: (n) => abas[n] || null,
              insertSheet: (n) => { abas[n] = aba(n, []); return abas[n]; } };

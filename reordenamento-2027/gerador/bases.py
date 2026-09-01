@@ -156,3 +156,77 @@ H_PANORAMA = [
 H_IDEB = ["Município", "IDEB Anos Finais (rede municipal)",
           "IDEB Anos Finais (rede estadual)", "IDEB Ensino Médio",
           "Ano de referência", "Observação"]
+
+
+# ─────────────────────────────────────────── BASE TRATADA COMPLETA (44 colunas)
+
+H_BT44 = H_BASE_TRATADA[:18] + [
+    "Oferta 2027 · 1ª série (alunos previstos)", "Oferta 2027 · 1ª série (turmas)",
+    "Oferta 2027 · 1ª série (cursos)"] + H_BASE_TRATADA[21:28] + [
+    "Salas necessárias 2027 (oferta real)"] + H_BASE_TRATADA[29:] + [
+    "Oferta 2027 · 2ª série (turmas)", "Oferta 2027 · 2ª série (alunos)",
+    "Oferta 2027 · 3ª série (turmas)", "Oferta 2027 · 3ª série (alunos)",
+    "Oferta 2027 · subsequente (turmas)", "Oferta 2027 · subsequente (alunos)",
+    "Oferta 2027 · 2ª e 3ª série (cursos)", "Salas 2027 · composição",
+    "Oferta 2027 · tem oferta?",
+    "Fundamental 2026 · turmas", "Só EJA (CEJA)?",
+    "EJA 2026 · turmas no prédio matriz", "EJA 2026 · matrículas no prédio matriz",
+    "Turmas zeradas descartadas"]
+
+
+def base_tratada_44(matrizes, ordem_m, anexos, ordem_a, oferta, ueja_resumo,
+                    fusao_resumo, salas_fn):
+    """As 44 colunas da Base Tratada, na mesma ordem que o Apps Script grava."""
+    por_inep = defaultdict(list)
+    for ch in ordem_a:
+        por_inep[anexos[ch].inep].append(anexos[ch])
+
+    linhas = []
+    for i in ordem_m:
+        e = matrizes[i]
+        of = oferta.get(i)
+        p = projetar_2027(e, 0)
+        s = salas_fn(i)
+        comp = ("integral %d + máx(manhã %d, tarde %d) + noite %d"
+                % (s["integral"], s["manha"], s["tarde"], s["noite"]))
+
+        lista = por_inep.get(i, [])
+        txt_anexos = "\n".join(
+            "• %s [%s] — %d turma(s) · %d matrícula(s)"
+            % (a.anexo, ROTULO_LOCAL.get(a.tipoAnexo, a.tipoAnexo),
+               a.totalTurmas, a.totalMatriculas) for a in lista) or "—"
+
+        resumo27 = ("Turmas EM 2027 (base): %d de 1ª, %d de 2ª, %d de 3ª%s. "
+                    "Salas estimadas na MATRIZ: %d. EJA não entra neste cálculo."
+                    % (p["pro1"], p["pro2"], p["pro3"],
+                       (", %d outra(s) turma(s) EM" % e.outrosEM) if e.outrosEM > 0 else "",
+                       p["salasNec"]))
+
+        linhas.append([
+            int(e.inep), e.escola, montar_oferta_em(e), e.s1, p["pro2"], p["pro3"],
+            montar_oferta_eja(e),
+            ("%d turmas · %d matrículas" % (e.ejaMatrizTurmas, e.ejaMatrizEntm))
+            if e.ejaMatrizTurmas > 0 else "—",
+            "\n".join(sorted(e.efLinhas)) if e.efLinhas else "—",
+            "\n".join(e.parciais) if e.parciais else "—",
+            montar_fusoes(e), p["salasNec"], p["delta"], resumo_hoje(e), resumo27,
+            ("%d matrículas | %d turmas" % (e.ejaMatrizEntm, e.ejaMatrizTurmas))
+            if e.ejaMatrizTurmas > 0 else "—",
+            int(e.ef9Turmas), int(e.ef9Matriculas),
+            int(of["of1_alunos"]) if of else 0,
+            int(of["of1_turmas"]) if of else 0,
+            of["of1_detalhe"] if of else "— sem oferta de EM em 2027",
+            ueja_resumo.get(i, "Sem oferta de EJA"),
+            int(e.ejaAnexoTurmas), int(e.ejaAnexoMatriculas),
+            fusao_resumo.get(i, "—") or "—",
+            txt_anexos, len(lista),
+            s["salas"], norm(e.municipio), e.gre,
+            int(of["co2_turmas"]) if of else 0, int(of["co2_alunos"]) if of else 0,
+            int(of["co3_turmas"]) if of else 0, int(of["co3_alunos"]) if of else 0,
+            int(of["sub_turmas"]) if of else 0, int(of["sub_alunos"]) if of else 0,
+            (of["co2_detalhe"] + " || " + of["co3_detalhe"]) if of else "—",
+            comp, "SIM" if of else "NÃO",
+            int(e.efTotal), "SIM" if so_eja(e) else "NÃO",
+            int(e.ejaMatrizTurmas), int(e.ejaMatrizEntm), int(e.turmasZeradas),
+        ])
+    return linhas

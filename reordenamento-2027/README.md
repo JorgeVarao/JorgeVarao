@@ -259,6 +259,81 @@ hoje — as outras 79 são unidades de EJA e fundamental.
 
 ---
 
+## Terceira rodada — quantidade por curso, anexos, EJA
+
+### Curso e etapa com a quantidade junto
+
+A coluna `★ CURSOS 1ª SÉRIE 2027` diz *quais* cursos. Ao lado nasceu
+`★ TURMAS 1ª SÉRIE 2027`, que diz *quantas turmas de cada um*. O mesmo par existe
+para o Fundamental: `★ FUNDAMENTAL 2027` e `★ TURMAS FUNDAMENTAL 2027`.
+
+Ninguém digita nome de curso. O menu já oferece o item pronto — `Logística (2)` —
+e clicar de novo acrescenta o próximo, igual ao menu acumulativo que já existia.
+São 264 itens no menu de cursos (33 cursos × até 8 turmas) e 72 no de Fundamental.
+
+**Nenhuma coluna ★ é fórmula.** A conta fica em coluna própria, ao lado:
+`Fundamental 2027 · total de turmas` e `1ª série 2027 · total pelos cursos` leem o
+que está entre parênteses e somam. É de lá que a necessidade de sala sai:
+
+```
+salas = base do motor
+      + (1ª decidida  − 1ª da oferta)      ← usa o total pelos cursos quando houver
+      + (2ª decidida  − 2ª da oferta)
+      + (3ª decidida  − 3ª da oferta)
+      + (Fundamental decidido − Fundamental 2026)
+      + (EJA decidida − EJA 2026)          ← só nas CEJA
+```
+
+As duas colunas de total usam `REGEXEXTRACT` e `SPLIT`, que só existem no Google
+Sheets. No Excel elas ficam em branco; no Sheets funcionam normalmente.
+
+### Anexos: uma pergunta só
+
+As três colunas (`manter?`, `encerrar?`, `remanejar?`) viraram
+`★ DECISÃO SOBRE O ANEXO`, com oito opções que cobrem os três casos — de
+*"manter como está"* a *"encerrar — oferta vai para a rede municipal"*.
+
+### Turma sem matrícula não é turma
+
+Turma declarada com 0 matrículas some da oferta e sai de toda contagem:
+**250 turmas** em toda a base. A coluna `Turmas zeradas descartadas`, na Base
+Tratada, registra quantas foram por escola.
+
+### EJA
+
+A oferta que acontece em anexo saiu de `Oferta EJA 2026` e de
+`Matrículas / Turmas EJA` — as duas passam a mostrar só o prédio matriz. O que
+está fora aparece em `EJA fora do prédio matriz (UEJA)`, e só ali.
+
+A coluna `★ EJA Cursos 2027` foi removida.
+
+### CEJA: a EJA passa a definir a sala
+
+Nas **31 unidades exclusivamente de EJA**, a EJA entra no cálculo pela regra de
+turno (integral + máx(manhã, tarde) + noite). Antes elas apareciam com 0 salas
+necessárias — a CEJA Leônidas Melo, com 12 turmas, era lida como *"7 salas
+ociosas"*. Agora pede 12 e possui 7.
+
+Nas outras 439 escolas com EJA nada muda: a EJA noturna usa a sala que o diurno
+já ocupa, e continua fora da conta.
+
+### Semente x decisão
+
+O script precisa saber se um número numa coluna ★ foi ele que plantou ou se
+alguém digitou. Isso agora fica gravado na aba oculta `★ Sementes (controle)`,
+reescrita a cada rodada:
+
+| estado da célula | o que acontece |
+|---|---|
+| vazia | recebe a semente |
+| igual à última semente | ainda é semente, é refeita |
+| qualquer outro valor | é decisão de gente, não se toca |
+
+Antes isso dependia de eu comparar com a entrega anterior, o que não sobrevive a
+quem roda o script depois.
+
+---
+
 ## Preservação do trabalho manual
 
 A segunda entrega foi aplicada **sobre** a planilha em uso, não regerada. O que

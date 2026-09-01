@@ -217,6 +217,7 @@ function novaUnidade_(inep, escola, anexo, meta) {
     salasGDI: meta.salas, escolaProxima: meta.escolaProxima || "",
     tipoAnexo: classificarAnexo_(anexo),
     emLinhas: [], ejaLinhas: [], efLinhas: [], outrasLinhas: [], parciais: [],
+    ejaMatrizLinhas: [],
     cursos: {}, cursos1a: {}, ejaPorLocal: {}
   };
   var zeros = ("totalTurmas totalMatriculas emTotal efTotal totalEJA totalEJAentm " +
@@ -224,7 +225,9 @@ function novaUnidade_(inep, escola, anexo, meta) {
     "s1I s1M s1T s1N s2I s2M s2T s2N s3I s3M s3T s3N " +
     "outrosEM outrosI outrosM outrosT outrosN ejI ejM ejT ejN " +
     "ef9Turmas ef9Matriculas ef8Turmas ef8Matriculas " +
-    "aeeTurmas aeeMatriculas ejaAnexoTurmas ejaAnexoMatriculas").split(" ");
+    "aeeTurmas aeeMatriculas ejaAnexoTurmas ejaAnexoMatriculas " +
+    "turmasZeradas ejaMatrizTurmas ejaMatrizEntm " +
+    "ejMatrizI ejMatrizM ejMatrizT ejMatrizN").split(" ");
   for (var k = 0; k < zeros.length; k++) e[zeros[k]] = 0;
   return e;
 }
@@ -267,6 +270,13 @@ function acumularTurma_(e, r, anexo) {
 
   if (turmas === 0 && entm === 0 && !curso && !etapa) return;
 
+  // Turma declarada sem nenhuma matrícula não é turma: não aparece na oferta
+  // nem entra em contagem alguma. Fica só registrada para conferência.
+  if (entm === 0 && turmas > 0) {
+    e.turmasZeradas += turmas;
+    return;
+  }
+
   var cU = curso.toUpperCase(), eU = etapa.toUpperCase(), tU = turno.toUpperCase();
 
   var ehEJA = eU.indexOf("EJA") > -1 || cU.indexOf("EJA") > -1;
@@ -292,6 +302,12 @@ function acumularTurma_(e, r, anexo) {
     e.totalEJAentm += entm;
     somarTurno_(e, "ej", tU, turmas);
     somarEJALocal_(e, anexo, curso, turmas, entm);
+    if (classificarAnexo_(anexo) === "MATRIZ") {
+      e.ejaMatrizLinhas.push(txt);
+      e.ejaMatrizTurmas += turmas;
+      e.ejaMatrizEntm += entm;
+      somarTurno_(e, "ejMatriz", tU, turmas);
+    }
     return;
   }
 
@@ -401,6 +417,12 @@ function projetar2027_(e, uetepTurmas) {
   var t27 = e.s1T + e.s1T + e.s2T + e.outrosT + e.efT;
   var n27 = e.s1N + e.s1N + e.s2N + e.outrosN + e.efN;
 
+  // CEJA: sem oferta diurna para dividir sala, a própria EJA é a sala.
+  if (soEJA_(e)) {
+    i27 += e.ejMatrizI; m27 += e.ejMatrizM;
+    t27 += e.ejMatrizT; n27 += e.ejMatrizN;
+  }
+
   var salas = i27 + Math.max(m27, t27) + n27;
   var total27 = pro1 + pro2 + pro3 + e.outrosEM + uetepTurmas;
 
@@ -425,15 +447,16 @@ function montarOfertaEM_(e) {
          "\nTurmas: " + (res.length ? res.join(" | ") : "0");
 }
 
+/** Só a EJA do prédio matriz. O que está em anexo aparece na coluna da UEJA. */
 function montarOfertaEJA_(e) {
-  if (!e.ejaLinhas.length) return "—";
+  if (!e.ejaMatrizLinhas.length) return "—";
   var res = [];
-  if (e.ejI > 0) res.push(e.ejI + " Integral");
-  if (e.ejM > 0) res.push(e.ejM + " Manhã");
-  if (e.ejT > 0) res.push(e.ejT + " Tarde");
-  if (e.ejN > 0) res.push(e.ejN + " Noite");
-  return e.ejaLinhas.slice().sort().join("\n") +
-         "\nTurmas EJA: " + (res.length ? res.join(" | ") : "0");
+  if (e.ejMatrizI > 0) res.push(e.ejMatrizI + " Integral");
+  if (e.ejMatrizM > 0) res.push(e.ejMatrizM + " Manhã");
+  if (e.ejMatrizT > 0) res.push(e.ejMatrizT + " Tarde");
+  if (e.ejMatrizN > 0) res.push(e.ejMatrizN + " Noite");
+  return e.ejaMatrizLinhas.slice().sort().join("\n") +
+         "\nTurmas EJA no prédio matriz: " + (res.length ? res.join(" | ") : "0");
 }
 
 /** Fusão apenas dentro da própria unidade. */
@@ -663,12 +686,21 @@ function lerOferta2027_(ss) {
  *   manhã e tarde dividem a mesma sala — vale o maior dos dois
  *   noite fica à parte · EJA não entra
  */
+function soEJA_(e) {
+  return e.totalEJA > 0 && e.emTotal === 0 && e.efTotal === 0;
+}
+
 function salasOferta2027_(e, of) {
   var i27 = (of ? of.of1Turmas + of.co2Turmas + of.co3Turmas + of.subTurmas : 0)
             + e.efI + e.outrosI;
   var m27 = e.efM + e.outrosM;
   var t27 = e.efT + e.outrosT;
   var n27 = e.efN + e.outrosN;
+
+  // CEJA: não há oferta diurna para dividir sala, então a EJA é a sala.
+  if (soEJA_(e)) {
+    i27 = e.ejMatrizI; m27 = e.ejMatrizM; t27 = e.ejMatrizT; n27 = e.ejMatrizN;
+  }
   return { integral: i27, manha: m27, tarde: t27, noite: n27,
            salas: i27 + Math.max(m27, t27) + n27 };
 }
@@ -895,7 +927,10 @@ function gravarBaseTratada_(ss, matrizes, ordemM, anexos, ordemA, oferta, uejaRe
     "Oferta 2027 · 3ª série (turmas)", "Oferta 2027 · 3ª série (alunos)",
     "Oferta 2027 · subsequente (turmas)", "Oferta 2027 · subsequente (alunos)",
     "Oferta 2027 · 2ª e 3ª série (cursos)", "Salas 2027 · composição",
-    "Oferta 2027 · tem oferta?"];
+    "Oferta 2027 · tem oferta?",
+    "Fundamental 2026 · turmas", "Só EJA (CEJA)?",
+    "EJA 2026 · turmas no prédio matriz", "EJA 2026 · matrículas no prédio matriz",
+    "Turmas zeradas descartadas"];
 
   var linhas = [];
 
@@ -923,11 +958,11 @@ function gravarBaseTratada_(ss, matrizes, ordemM, anexos, ordemA, oferta, uejaRe
 
     linhas.push([Number(e.inep), e.escola, montarOfertaEM_(e), e.s1, pSem.pro2, pSem.pro3,
       montarOfertaEJA_(e),
-      e.totalEJA > 0 ? (e.totalEJA + " turmas · " + e.totalEJAentm + " matrículas") : "—",
+      e.ejaMatrizTurmas > 0 ? (e.ejaMatrizTurmas + " turmas · " + e.ejaMatrizEntm + " matrículas") : "—",
       e.efLinhas.length ? e.efLinhas.slice().sort().join("\n") : "—",
       e.parciais.length ? e.parciais.join("\n") : "—",
       montarFusoes_(e), pSem.salasNec, pSem.delta, resumoHoje_(e), resumo27,
-      e.totalEJA > 0 ? (e.totalEJAentm + " matrículas | " + e.totalEJA + " turmas") : "—",
+      e.ejaMatrizTurmas > 0 ? (e.ejaMatrizEntm + " matrículas | " + e.ejaMatrizTurmas + " turmas") : "—",
       e.ef9Turmas, e.ef9Matriculas,
       of ? of.of1Alunos : 0, of ? of.of1Turmas : 0,
       of ? of.of1Detalhe : "— sem oferta de EM em 2027",
@@ -940,13 +975,16 @@ function gravarBaseTratada_(ss, matrizes, ordemM, anexos, ordemA, oferta, uejaRe
       of ? of.co3Turmas : 0, of ? of.co3Alunos : 0,
       of ? of.subTurmas : 0, of ? of.subAlunos : 0,
       of ? (of.co2Detalhe + " || " + of.co3Detalhe) : "—",
-      composicao, of ? "SIM" : "NÃO"]);
+      composicao, of ? "SIM" : "NÃO",
+      e.efTotal, soEJA_(e) ? "SIM" : "NÃO",
+      e.ejaMatrizTurmas, e.ejaMatrizEntm, e.turmasZeradas]);
   }
 
   gravar_(ss, ABA_BT, h, linhas,
     [100, 220, 400, 70, 70, 70, 380, 160, 280, 220, 360, 90, 80, 280, 300, 200,
      100, 110, 130, 110, 400, 300, 110, 120, 400, 320, 80, 130, 180, 110,
-     110, 110, 110, 110, 120, 120, 400, 300, 100],
+     110, 110, 110, 110, 120, 120, 400, 300, 100,
+     120, 100, 120, 130, 120],
     [3, 7, 8, 9, 10, 11, 14, 15, 16, 21, 22, 25, 26, 37, 38]);
 }
 
@@ -1184,7 +1222,7 @@ function formulasV2_(ss, nBT, nPM, nGD, nID, nFT) {
   if (n < 2) return;
   var qtd = n - 1;
 
-  semear_(sh, nBT, [[13, 20], [17, 31], [18, 33], [24, 28]]);   // ★ vazias → oferta 2027
+  semear_(sh, nBT, [[13, 20], [17, 31], [18, 33], [24, 28]]);
   municipios_(sh, nGD, qtd);
 
   var cols = {};
@@ -1231,6 +1269,17 @@ function formulasV2_(ss, nBT, nPM, nGD, nID, nFT) {
 }
 
 
+/**
+ * V3 — 51 colunas. As colunas ★ NUNCA recebem fórmula: quem decide digita ou
+ * escolhe no menu. As contas ficam em colunas próprias, ao lado, que leem a ★.
+ *
+ *   H  ★ FUNDAMENTAL          I  ★ TURMAS FUNDAMENTAL   J  total (calculado)
+ *   Q  ★ 1ª SÉRIE             S  ★ CURSOS 1ª SÉRIE
+ *   T  ★ TURMAS 1ª SÉRIE      U  total pelos cursos (calculado)
+ *   W  ★ 2ª SÉRIE             X  ★ 3ª SÉRIE
+ *   AH salas calculadas       AI ★ SALAS                AJ situação
+ *   AN ★ EJA TURMAS           AQ ★ DECISÃO SOBRE O ANEXO
+ */
 function formulasV3_(ss, nBT, nPM, nGD, nID, nFE) {
 
   var sh = ss.getSheetByName(ABA_V3);
@@ -1240,8 +1289,16 @@ function formulasV3_(ss, nBT, nPM, nGD, nID, nFE) {
   if (n < 2) return;
   var qtd = n - 1;
 
-  semear_(sh, nBT, [[15, 20], [19, 31], [20, 33], [31, 28]]);   // ★ vazias → oferta 2027
+  semear_(sh, nBT, [[17, 20], [23, 31], [24, 33], [35, 28], [40, 42]]);
   municipios_(sh, nGD, qtd);
+
+  // total de turmas a partir de "Curso (2), Outro (1)" — soma o que está
+  // entre parênteses. Fica numa coluna só dela, nunca dentro da ★.
+  function somaParenteses(ref) {
+    return 'IFERROR(SUM(ARRAYFORMULA(IFERROR(VALUE(REGEXEXTRACT(' +
+           'SPLIT(' + ref + ',","),"\\((\\d+)\\)")),0))),0)';
+  }
+  var turmas1a = "IF($U@>0,$U@,$Q@)";     // curso a curso quando houver; senão o total
 
   var cols = {};
   cols[2]  = gd_("$A@", 3, nGD);
@@ -1249,64 +1306,69 @@ function formulasV3_(ss, nBT, nPM, nGD, nID, nFE) {
   cols[5]  = gd_("$A@", 14, nGD);
   cols[6]  = gd_("$A@", 15, nGD);
   cols[7]  = bt_("$A@", 9, nBT, '"—"');
-  cols[8]  = 'IF($A@="","",' + bt_("$A@", 18, nBT, "0") + '&" matrícula(s) · "&' +
+  cols[10] = somaParenteses("$I@");                          // Fundamental 2027 total
+  cols[11] = 'IF($A@="","",' + bt_("$A@", 18, nBT, "0") + '&" matrícula(s) · "&' +
              bt_("$A@", 17, nBT, "0") + '&" turma(s)")';
-  cols[9]  = 'IF($C@="","",' + pm_("$C@", 2, nPM, "0") + '&" alunos (estadual "&' +
-             pm_("$C@", 4, nPM, "0") + '&" + outras redes "&' +
-             pm_("$C@", 6, nPM, "0") + '&")")';
-  cols[10] = 'IF($C@="","",' + pm_("$C@", 7, nPM, "0") + '&" alunos → "&' +
+  cols[12] = 'IF($C@="","",' + pm_("$C@", 2, nPM, "0") + '&" alunos (estadual "&' +
+             pm_("$C@", 4, nPM, "0") + '&" + outras redes "&' + pm_("$C@", 6, nPM, "0") + '&")")';
+  cols[13] = 'IF($C@="","",' + pm_("$C@", 7, nPM, "0") + '&" alunos → "&' +
              pm_("$C@", 8, nPM, "0") + '&" turma(s) necessária(s)")';
-  cols[11] = falta_("$C@", 13, nPM);
-  cols[13] = ideb_("$C@", 2, nID);
-  cols[16] = bt_("$A@", 3, nBT, '"—"');
-  cols[21] = bt_("$A@", 20, nBT, "0");                       // 1ª série 2027 (turmas)
-  cols[22] = bt_("$A@", 21, nBT, '"—"');                     // cursos da 1ª série
-  cols[23] = 'IF($A@="","",' + bt_("$A@", 31, nBT, "0") + '&" de 2ª | "&' +
-             bt_("$A@", 33, nBT, "0") + '&" de 3ª | "&' +
-             bt_("$A@", 35, nBT, "0") + '&" subseq.")';
-  cols[24] = bt_("$A@", 10, nBT, '"—"');
-  cols[26] = bt_("$A@", 11, nBT, '"—"');
-  cols[27] = "IFERROR(IF(COUNTIF('" + ABA_FE + "'!$F$2:$F$" + nFE + ",$A@)+COUNTIF('" +
-             ABA_FE + "'!$N$2:$N$" + nFE + ',$A@)=0,"Nenhuma fusão sugerida",' +
-             bt_("$A@", 25, nBT, '"—"') + '),"—")';
-  cols[29] = gd_("$A@", 6, nGD);
-  // cada turma que a reunião decidir a mais ou a menos move a sala na mesma medida
-  cols[30] = 'IF($A@="","",MAX(0,' + bt_("$A@", 28, nBT, "0") +
-             "+($O@-" + bt_("$A@", 20, nBT, "0") + ")" +
-             "+($S@-" + bt_("$A@", 31, nBT, "0") + ")" +
-             "+($T@-" + bt_("$A@", 33, nBT, "0") + ")))";
-  cols[32] = situacaoSala_("$AC", "$AE");
-  cols[33] = bt_("$A@", 7, nBT, '"—"');
-  cols[34] = bt_("$A@", 16, nBT, '"—"');
-  cols[35] = bt_("$A@", 22, nBT, '"—"');
-  cols[38] = bt_("$A@", 26, nBT, '"—"');
-  cols[39] = bt_("$A@", 27, nBT, "0");
-  cols[43] = 'IF($A@="","",$O@&" de 1ª | "&$S@&" de 2ª | "&$T@&" de 3ª | UETEP "&$W@' +
-             '&" | Necessidade: "&$AE@&" salas | "&$AF@)';
-  cols[44] = gd_("$A@", 18, nGD, '"—"');
-  cols[49] = 'IF($A@="","",' + bt_("$A@", 32, nBT, "0") + "+" +
-             bt_("$A@", 34, nBT, "0") + '&" aluno(s)")';
-  cols[50] = 'IF($A@="","",IF(AND($O@=' + bt_("$A@", 20, nBT, "0") + ',$S@=' +
-             bt_("$A@", 31, nBT, "0") + ',$T@=' + bt_("$A@", 33, nBT, "0") +
-             '),"igual à oferta","decidido "&$O@&"/"&$S@&"/"&$T@&" · oferta "&' +
-             bt_("$A@", 20, nBT, "0") + '&"/"&' + bt_("$A@", 31, nBT, "0") +
-             '&"/"&' + bt_("$A@", 33, nBT, "0") + '))';
+  cols[14] = falta_("$C@", 13, nPM);
+  cols[15] = "IFERROR(VLOOKUP($A@,'IDEB - ESCOLAS'!C:F,4,0),\"\")";
+  cols[18] = bt_("$A@", 3, nBT, '"—"');
+  cols[21] = somaParenteses("$T@");                          // 1ª série total pelos cursos
+  cols[25] = bt_("$A@", 20, nBT, "0");
+  cols[26] = bt_("$A@", 21, nBT, '"—"');
+  cols[27] = 'IF($A@="","",' + bt_("$A@", 31, nBT, "0") + '&" de 2ª | "&' +
+             bt_("$A@", 33, nBT, "0") + '&" de 3ª | "&' + bt_("$A@", 35, nBT, "0") + '&" subseq.")';
+  cols[28] = bt_("$A@", 10, nBT, '"—"');
+  cols[30] = bt_("$A@", 11, nBT, '"—"');
+  cols[31] = bt_("$A@", 25, nBT, '"—"');
+  cols[33] = gd_("$A@", 6, nGD);
+
+  // salas: a base do motor, movida por tudo que for decidido nas ★
+  cols[34] = 'IF($A@="","",MAX(0,' + bt_("$A@", 28, nBT, "0") +
+             "+((" + turmas1a + ")-" + bt_("$A@", 20, nBT, "0") + ")" +
+             "+($W@-" + bt_("$A@", 31, nBT, "0") + ")" +
+             "+($X@-" + bt_("$A@", 33, nBT, "0") + ")" +
+             "+($J@-" + bt_("$A@", 40, nBT, "0") + ")" +
+             "+IF(" + bt_("$A@", 41, nBT, '"NÃO"') + '="SIM",$AN@-' +
+             bt_("$A@", 42, nBT, "0") + ",0)))";
+  cols[36] = 'IF($AI@="","",IF($AG@>$AI@,($AG@-$AI@)&" SALA(S) OCIOSA(S)",' +
+             'IF($AG@<$AI@,"CONSTRUIR "&($AI@-$AG@)&" SALA(S)","QUANTIDADE ADEQUADA")))';
+  cols[37] = bt_("$A@", 7, nBT, '"—"');
+  cols[38] = bt_("$A@", 16, nBT, '"—"');
+  cols[39] = bt_("$A@", 22, nBT, '"—"');
+  cols[41] = bt_("$A@", 26, nBT, '"—"');
+  cols[42] = bt_("$A@", 27, nBT, "0");
+  cols[44] = 'IF($A@="","",(' + turmas1a + ')&" de 1ª | "&$W@&" de 2ª | "&$X@&" de 3ª | Fund "&' +
+             '$J@&" | EJA "&$AN@&" | Necessidade: "&$AI@&" salas | "&$AJ@)';
+  cols[45] = gd_("$A@", 18, nGD, '"—"');
+  cols[50] = 'IF($A@="","",' + bt_("$A@", 32, nBT, "0") + "+" + bt_("$A@", 34, nBT, "0") +
+             '&" aluno(s)")';
+  cols[51] = 'IF($A@="","",IF(AND((' + turmas1a + ')=' + bt_("$A@", 20, nBT, "0") +
+             ',$W@=' + bt_("$A@", 31, nBT, "0") + ',$X@=' + bt_("$A@", 33, nBT, "0") +
+             '),"igual à oferta","decidido "&(' + turmas1a + ')&"/"&$W@&"/"&$X@&" · oferta "&' +
+             bt_("$A@", 20, nBT, "0") + '&"/"&' + bt_("$A@", 31, nBT, "0") + '&"/"&' +
+             bt_("$A@", 33, nBT, "0") + '))';
 
   aplicar_(sh, cols, qtd);
 
-  listaDaAba_(ss, sh, 12, qtd, ABA_VAL, 1);
-  listaDaAba_(ss, sh, 28, qtd, ABA_VAL, 8);
-  listaSimples_(sh, 40, qtd, ["SIM", "NÃO", "EM ANÁLISE"]);
-  listaSimples_(sh, 41, qtd, ["SIM", "NÃO", "EM ANÁLISE"]);
-  listaDaAba_(ss, sh, 42, qtd, ABA_VAL, 10);
-  listaDaAba_(ss, sh, 45, qtd, ABA_VAL, 9);
+  var nV = ultimaLinha_(ss, ABA_VAL);
+  listaDaAba_(ss, sh, 8,  qtd, ABA_VAL, 1);    // ★ Fundamental — quais etapas
+  listaDaAba_(ss, sh, 9,  qtd, ABA_VAL, 12);   // ★ Turmas de Fundamental — etapa (n)
+  listaDaAba_(ss, sh, 19, qtd, ABA_VAL, 11);   // ★ Cursos da 1ª série
+  listaDaAba_(ss, sh, 20, qtd, ABA_VAL, 11);   // ★ Turmas por curso — curso (n)
+  listaDaAba_(ss, sh, 32, qtd, ABA_VAL, 8);    // ★ Validação da fusão
+  listaDaAba_(ss, sh, 43, qtd, ABA_VAL, 13);   // ★ Decisão sobre o anexo
+  listaDaAba_(ss, sh, 46, qtd, ABA_VAL, 9);    // ★ Reordenamento
 }
 
 
 // ─────────────────────────────────────────── montadores de fórmula
 
 function bt_(chave, col, n, err) {
-  return "IFERROR(VLOOKUP(" + chave + ",'" + ABA_BT + "'!$A$2:$AM$" + n + "," +
+  return "IFERROR(VLOOKUP(" + chave + ",'" + ABA_BT + "'!$A$2:$AR$" + n + "," +
          col + ",FALSE)," + (err || '""') + ")";
 }
 function pm_(chave, col, n, err) {
@@ -1361,7 +1423,19 @@ function municipios_(sh, nGD, qtd) {
 }
 
 
-/** Preenche coluna ★ numérica só quando ela ainda estiver vazia. */
+/**
+ * Semente x decisão.
+ *
+ * O script precisa saber se um número numa coluna ★ foi ele mesmo que plantou
+ * ou se alguém digitou. Isso fica gravado na aba "★ Sementes (controle)", que
+ * ele reescreve a cada rodada. A regra:
+ *
+ *   célula vazia                        → recebe a semente
+ *   célula igual à última semente       → ainda é semente, pode ser refeita
+ *   qualquer outro valor                → é decisão de gente, não se toca
+ */
+var ABA_SEMENTES = "★ Sementes (controle)";
+
 function semear_(sh, nBT, pares) {
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1380,25 +1454,167 @@ function semear_(sh, nBT, pares) {
   var qtd = n - 1;
   var ineps = sh.getRange(2, 1, qtd, 1).getValues();
 
+  var anterior = lerSementes_(ss, sh.getName());
+  var agora = {};
+
   for (var p = 0; p < pares.length; p++) {
+
     var colDest = pares[p][0], colOrig = pares[p][1];
+    var chaveCol = String(colDest);
     var atual = sh.getRange(2, colDest, qtd, 1).getValues();
     var mudou = false;
+
     for (var r = 0; r < qtd; r++) {
-      if (atual[r][0] !== "" && atual[r][0] !== null) continue;
+
       var k2 = inep_(ineps[r][0]);
       if (!k2 || !mapa[k2]) continue;
-      atual[r][0] = mapa[k2][colOrig - 1];
-      mudou = true;
+
+      var semente = mapa[k2][colOrig - 1];
+      if (!agora[k2]) agora[k2] = {};
+      agora[k2][chaveCol] = semente;
+
+      var v = atual[r][0];
+      var vazio = (v === "" || v === null || v === undefined);
+      var ant = (anterior[k2] || {})[chaveCol];
+      var aindaSemente = !vazio && ant !== undefined && ant !== null &&
+                         String(ant) !== "" && Number(v) === Number(ant);
+
+      if (vazio || aindaSemente) {
+        if (String(atual[r][0]) !== String(semente)) {
+          atual[r][0] = semente;
+          mudou = true;
+        }
+      }
     }
     if (mudou) sh.getRange(2, colDest, qtd, 1).setValues(atual);
   }
+
+  gravarSementes_(ss, sh.getName(), ineps, pares, agora);
+}
+
+
+function lerSementes_(ss, aba) {
+  var sh = ss.getSheetByName(ABA_SEMENTES);
+  var out = {};
+  if (!sh) return out;
+  var n = sh.getLastRow();
+  if (n < 2) return out;
+  var d = sh.getRange(1, 1, n, sh.getLastColumn()).getValues();
+  var cols = {};
+  for (var c = 2; c < d[0].length; c++) {
+    var t = String(d[0][c] || "");
+    if (t.indexOf(aba + "|") === 0) cols[t.split("|")[1]] = c;
+  }
+  for (var i = 1; i < d.length; i++) {
+    var k = inep_(d[i][0]);
+    if (!k) continue;
+    out[k] = {};
+    for (var chave in cols) out[k][chave] = d[i][cols[chave]];
+  }
+  return out;
+}
+
+
+function gravarSementes_(ss, aba, ineps, pares, agora) {
+
+  var sh = ss.getSheetByName(ABA_SEMENTES);
+  if (!sh) {
+    sh = ss.insertSheet(ABA_SEMENTES);
+    sh.getRange(1, 1).setValue("INEP");
+    sh.hideSheet();
+  }
+
+  var n = Math.max(2, sh.getLastRow());
+  var largura = Math.max(1, sh.getLastColumn());
+  var d = sh.getRange(1, 1, n, largura).getValues();
+
+  var linhaDe = {};
+  for (var i = 1; i < d.length; i++) {
+    var k = inep_(d[i][0]);
+    if (k) linhaDe[k] = i;
+  }
+
+  var colDe = {};
+  for (var c = 1; c < d[0].length; c++) colDe[String(d[0][c])] = c;
+
+  for (var p = 0; p < pares.length; p++) {
+    var titulo = aba + "|" + pares[p][0];
+    if (colDe[titulo] === undefined) {
+      colDe[titulo] = d[0].length;
+      d[0].push(titulo);
+      for (var r = 1; r < d.length; r++) d[r].push("");
+    }
+  }
+  var largura2 = d[0].length;
+  for (var r2 = 0; r2 < d.length; r2++)
+    while (d[r2].length < largura2) d[r2].push("");
+
+  for (var q = 0; q < ineps.length; q++) {
+    var k2 = inep_(ineps[q][0]);
+    if (!k2) continue;
+    if (linhaDe[k2] === undefined) {
+      var nova = [];
+      for (var z = 0; z < largura2; z++) nova.push("");
+      nova[0] = Number(k2);
+      d.push(nova);
+      linhaDe[k2] = d.length - 1;
+    }
+    var vals = agora[k2] || {};
+    for (var p2 = 0; p2 < pares.length; p2++) {
+      var t2 = aba + "|" + pares[p2][0];
+      var v2 = vals[String(pares[p2][0])];
+      d[linhaDe[k2]][colDe[t2]] = (v2 === undefined ? "" : v2);
+    }
+  }
+
+  sh.clear();
+  sh.getRange(1, 1, d.length, largura2).setValues(d);
+  sh.setFrozenRows(1);
 }
 
 
 // ═════════════════════════════════════════════════════════════════════
 //  10. VALIDAÇÕES  —  as listas dos menus suspensos
 // ═════════════════════════════════════════════════════════════════════
+
+var MAX_QTD = 8;          // até quantas turmas o menu oferece por curso / etapa
+
+var FUNDAMENTAL_ = [
+  "EF Inicial - 1º ano", "EF Inicial - 2º ano", "EF Inicial - 3º ano",
+  "EF Inicial - 4º ano", "EF Inicial - 5º ano", "EF Final - 6º ano",
+  "EF Final - 7º ano", "EF Final - 8º ano", "EF Final - 9º ano"];
+
+
+/**
+ * "Logística" vira "Logística (1)" … "Logística (8)".
+ *
+ * É isso que faz ninguém precisar digitar nome de curso: a pessoa escolhe o
+ * item pronto e a quantidade já vem junto. As colunas de total leem o número
+ * de dentro dos parênteses.
+ */
+function comQuantidade_(itens) {
+  var out = [];
+  for (var i = 0; i < itens.length; i++)
+    for (var q = 1; q <= MAX_QTD; q++)
+      out.push(itens[i] + " (" + q + ")");
+  return out;
+}
+
+
+/** Os cursos marcados como ofertados em 2027 na aba Cursos. */
+function cursosOfertados_(ss) {
+  var sh = ss.getSheetByName("Cursos");
+  if (!sh) return [];
+  var d = sh.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i < d.length; i++) {
+    var nome = texto_(d[i][2]);
+    var sit = texto_(d[i][6]).toUpperCase();
+    if (nome && sit.indexOf("OFERTADO") === 0) out.push(nome);
+  }
+  return out;
+}
+
 
 function criarValidacoes() {
 
@@ -1439,7 +1655,20 @@ function criarValidacoes() {
     { t: "DESTINO DA OFERTA\nDO ANEXO", cor: "#9333ea", bg: "#faf5ff", dados: [
       "Manter no anexo", "Trazer para o prédio matriz",
       "Transferir para outra escola estadual", "Transferir para a rede municipal",
-      "Encerrar a oferta", "Em análise"] }
+      "Encerrar a oferta", "Em análise"] },
+    { t: "CURSOS 1ª SÉRIE\ncom quantidade", cor: "#059669", bg: "#ecfdf5",
+      dados: comQuantidade_(cursosOfertados_(ss)) },
+    { t: "FUNDAMENTAL\ncom quantidade", cor: "#0891b2", bg: "#ecfeff",
+      dados: comQuantidade_(FUNDAMENTAL_) },
+    { t: "DECISÃO SOBRE\nO ANEXO", cor: "#9333ea", bg: "#faf5ff", dados: [
+      "Manter o anexo como está",
+      "Manter o anexo, com ajuste de oferta",
+      "Encerrar o anexo — oferta vai para o prédio matriz",
+      "Encerrar o anexo — oferta vai para outra escola estadual",
+      "Encerrar o anexo — oferta vai para a rede municipal",
+      "Encerrar o anexo — oferta encerrada",
+      "Remanejar a oferta, mantendo o anexo aberto",
+      "Em análise"] }
   ];
 
   var sh = ss.getSheetByName(ABA_VAL);
@@ -1467,7 +1696,7 @@ function criarValidacoes() {
     sh.getRange(1, c4 + 1).setBackground(cols[c4].cor).setFontColor("#ffffff");
     if (cols[c4].dados.length)
       sh.getRange(2, c4 + 1, cols[c4].dados.length, 1).setBackground(cols[c4].bg);
-    sh.setColumnWidth(c4 + 1, 240);
+    sh.setColumnWidth(c4 + 1, 260);
   }
   sh.setFrozenRows(1);
 
@@ -1513,9 +1742,9 @@ function listaSimples_(sh, col, qtd, itens) {
  */
 
 var COL_CURSOS = { };
-COL_CURSOS[ABA_V1] = [15];        // ★ CURSOS 1ª SÉRIE 2027
+COL_CURSOS[ABA_V1] = [15];             // ★ CURSOS 1ª SÉRIE 2027
 COL_CURSOS[ABA_V2] = [15];
-COL_CURSOS[ABA_V3] = [17];
+COL_CURSOS[ABA_V3] = [9, 19, 20];      // ★ turmas fundamental · cursos · turmas por curso
 var SEPARADOR = ", ";
 
 function onEdit(e) {
@@ -1550,7 +1779,8 @@ function desfazerUltimoCurso() {
   var cols = COL_CURSOS[aba];
 
   if (!cols || cols.indexOf(cel.getColumn()) === -1) {
-    SpreadsheetApp.getUi().alert("Selecione uma célula da coluna ★ CURSOS 1ª SÉRIE 2027.");
+    SpreadsheetApp.getUi().alert(
+      "Selecione uma célula de uma coluna ★ de cursos ou de turmas por curso.");
     return;
   }
 

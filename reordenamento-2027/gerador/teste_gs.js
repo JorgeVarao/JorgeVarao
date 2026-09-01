@@ -38,6 +38,7 @@ function aba(nome, linhas) {
       return faixa(bloco);
     },
     clear: () => { sh._d = []; return sh; },
+    hideSheet: () => sh, showSheet: () => sh,
     getFilter: () => null,
     setFrozenRows: () => sh, setColumnWidth: () => sh,
   };
