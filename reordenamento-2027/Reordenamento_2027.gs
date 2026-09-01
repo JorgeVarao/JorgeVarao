@@ -53,8 +53,11 @@ var ABA_TURMAS  = "Turmas";
 var ABA_GDI     = "Base GDI";
 var ABA_MPE     = "Matriculas por etapa";
 var ABA_BT      = "Base Tratada";
-var ABA_BA      = "Base Anexos";
+var ABA_BA      = "Base Anexos";      // se existir "Base Anexos (1)", o script não mexe
 var ABA_UETEP   = "Base UETEP";
+var ABA_OF1     = "UETEP · Oferta Integral 2027";   // 1ª série de 2027, por escola x curso
+var ABA_OFC     = "UETEP · Continuidade 2027";      // 2ª e 3ª série — uma linha por turma
+var ABA_OFS     = "UETEP · Subsequente 2027";
 var ABA_UEJA    = "Base UEJA";
 var ABA_FE      = "Fusão Entre Escolas";
 var ABA_FT      = "Fusão Turmas";
@@ -92,7 +95,7 @@ function atualizarTudo() {
     "✅ Atualização concluída\n\n" +
     "Base Tratada: " + res.matrizes + " prédio(s) matriz\n" +
     "Base Anexos: " + res.anexos + " anexo(s) / sala(s) externa(s)\n" +
-    "Base UETEP: " + res.uetep + " oferta(s) nova(s)\n" +
+    "Base UETEP: " + res.uetep + " escola(s) com oferta 2027\n" +
     "Base UEJA: " + res.ueja + " linha(s)\n" +
     "Fusão Entre Escolas: " + res.fusoes + " sugestão(ões)\n" +
     "Panorama Municipal: " + res.municipios + " município(s)\n\n" +
@@ -145,14 +148,22 @@ function atualizarBases(silencioso) {
     }
   }
 
+  var oferta = lerOferta2027_(ss);
   var uetep = baseUETEP_(ss, gdi);
   var ueja  = baseUEJA_(matrizes, ordemM);
   var fus   = fusaoEntreEscolas_(matrizes, ordemM);
   var pan   = panorama_(ss, matrizes, ordemM);
 
-  gravarBaseTratada_(ss, matrizes, ordemM, anexos, ordemA, uetep.porInep, ueja.resumo, fus.resumo);
-  gravarBaseAnexos_(ss, anexos, ordemA);
-  gravarUETEP_(ss, uetep.linhas);
+  gravarBaseTratada_(ss, matrizes, ordemM, anexos, ordemA, oferta, ueja.resumo, fus.resumo);
+
+  // Base Anexos: se vocês criaram a sua própria versão, o script não encosta nela
+  if (ss.getSheetByName("Base Anexos (1)")) {
+    Logger.log("Base Anexos (1) existe — mantida como está, sem reescrita.");
+  } else {
+    gravarBaseAnexos_(ss, anexos, ordemA);
+  }
+
+  gravarBaseUETEP_(ss, oferta, matrizes);
   gravarUEJA_(ss, ueja.linhas);
   gravarPanorama_(ss, pan);
   gravarIDEB_(ss, pan);            // precisa vir antes: a fusão consulta o IDEB
@@ -161,7 +172,7 @@ function atualizarBases(silencioso) {
   SpreadsheetApp.flush();
 
   var res = { matrizes: ordemM.length, anexos: ordemA.length,
-              uetep: uetep.linhas.length, ueja: ueja.linhas.length,
+              uetep: Object.keys(oferta).length, ueja: ueja.linhas.length,
               fusoes: fus.linhas.length, municipios: pan.length };
 
   if (!silencioso) {
@@ -544,6 +555,125 @@ function baseUETEP_(ss, gdi) {
 }
 
 
+/**
+ * OFERTA 2027 — a base real da UETEP, em três abas:
+ *
+ *   UETEP · Oferta Integral 2027   A GRE · B Município · C INEP · D Entidade
+ *                                  E TURMAS 2027 · F Curso · G Previsão de alunos
+ *   UETEP · Continuidade 2027      A GRE · B Município · C INEP · D Entidade
+ *                                  E Curso · F Etapa · G Qtd Alunos
+ *                                  (uma linha = uma turma)
+ *   UETEP · Subsequente 2027       A GRE · B Município · C INEP · D Entidade
+ *                                  E Projeção 1ª série · F Curso · G Eixo · H Alunos
+ *
+ * Linhas de total no rodapé (sem INEP) são descartadas.
+ */
+function lerOferta2027_(ss) {
+
+  var esc = {};
+
+  function unidade(inep) {
+    if (!esc[inep]) {
+      esc[inep] = {
+        inep: inep, gre: "", municipio: "", escola: "",
+        of1Turmas: 0, of1Alunos: 0, of1Cursos: {},
+        co2Turmas: 0, co2Alunos: 0, co2Cursos: {},
+        co3Turmas: 0, co3Alunos: 0, co3Cursos: {},
+        subTurmas: 0, subAlunos: 0, subCursos: {}
+      };
+    }
+    return esc[inep];
+  }
+
+  function identifica(e, r) {
+    if (!e.escola) {
+      e.gre = texto_(r[0]); e.municipio = texto_(r[1]); e.escola = texto_(r[3]);
+    }
+  }
+
+  // ---- 1ª série
+  var sh = ss.getSheetByName(ABA_OF1);
+  if (sh) {
+    var d = sh.getDataRange().getValues();
+    for (var i = 1; i < d.length; i++) {
+      var k = inep_(d[i][2]); if (!k) continue;
+      var e = unidade(k); identifica(e, d[i]);
+      var t = numero_(d[i][4]), curso = texto_(d[i][5]);
+      e.of1Turmas += t; e.of1Alunos += numero_(d[i][6]);
+      e.of1Cursos[curso] = (e.of1Cursos[curso] || 0) + t;
+    }
+  }
+
+  // ---- 2ª e 3ª série (continuidade): cada linha é uma turma
+  sh = ss.getSheetByName(ABA_OFC);
+  if (sh) {
+    var d2 = sh.getDataRange().getValues();
+    for (var j = 1; j < d2.length; j++) {
+      var k2 = inep_(d2[j][2]); if (!k2) continue;
+      var e2 = unidade(k2); identifica(e2, d2[j]);
+      var curso2 = texto_(d2[j][4]);
+      var etapa = texto_(d2[j][5]).toUpperCase();
+      var pre = etapa.indexOf("2") === 0 ? "co2" : "co3";
+      e2[pre + "Turmas"] += 1;
+      e2[pre + "Alunos"] += numero_(d2[j][6]);
+      e2[pre + "Cursos"][curso2] = (e2[pre + "Cursos"][curso2] || 0) + 1;
+    }
+  }
+
+  // ---- subsequente
+  sh = ss.getSheetByName(ABA_OFS);
+  if (sh) {
+    var d3 = sh.getDataRange().getValues();
+    for (var m = 1; m < d3.length; m++) {
+      var k3 = inep_(d3[m][2]); if (!k3) continue;
+      var e3 = unidade(k3); identifica(e3, d3[m]);
+      var t3 = numero_(d3[m][4]), curso3 = texto_(d3[m][5]);
+      e3.subTurmas += t3; e3.subAlunos += numero_(d3[m][7]);
+      e3.subCursos[curso3] = (e3.subCursos[curso3] || 0) + t3;
+    }
+  }
+
+  // ---- detalhe por curso
+  var ks = Object.keys(esc);
+  for (var x = 0; x < ks.length; x++) {
+    var u = esc[ks[x]];
+    var blocos = ["of1", "co2", "co3", "sub"];
+    for (var b = 0; b < blocos.length; b++) {
+      var mapa = u[blocos[b] + "Cursos"];
+      var cs = Object.keys(mapa);
+      cs.sort(function (a, c) {
+        if (mapa[c] !== mapa[a]) return mapa[c] - mapa[a];
+        return a < c ? -1 : (a > c ? 1 : 0);
+      });
+      var lista = [];
+      for (var y = 0; y < cs.length; y++) lista.push(cs[y] + " (" + mapa[cs[y]] + "T)");
+      u[blocos[b] + "Detalhe"] = lista.length ? lista.join(" · ") : "—";
+    }
+    u.totalTurmas = u.of1Turmas + u.co2Turmas + u.co3Turmas + u.subTurmas;
+  }
+  return esc;
+}
+
+
+/**
+ * Salas de 2027 com a oferta real.
+ *
+ *   integral = 1ª + 2ª + 3ª + subsequente (a oferta da UETEP é integral)
+ *              + fundamental integral + outras turmas de EM integrais
+ *   manhã e tarde dividem a mesma sala — vale o maior dos dois
+ *   noite fica à parte · EJA não entra
+ */
+function salasOferta2027_(e, of) {
+  var i27 = (of ? of.of1Turmas + of.co2Turmas + of.co3Turmas + of.subTurmas : 0)
+            + e.efI + e.outrosI;
+  var m27 = e.efM + e.outrosM;
+  var t27 = e.efT + e.outrosT;
+  var n27 = e.efN + e.outrosN;
+  return { integral: i27, manha: m27, tarde: t27, noite: n27,
+           salas: i27 + Math.max(m27, t27) + n27 };
+}
+
+
 // ═════════════════════════════════════════════════════════════════════
 //  5. UEJA  —  onde a EJA acontece: matriz, anexo ou sala externa
 // ═════════════════════════════════════════════════════════════════════
@@ -742,7 +872,7 @@ function panorama_(ss, matrizes, ordemM) {
 //  8. GRAVAÇÃO DAS BASES
 // ═════════════════════════════════════════════════════════════════════
 
-function gravarBaseTratada_(ss, matrizes, ordemM, anexos, ordemA, uetepIdx, uejaResumo, fusaoResumo) {
+function gravarBaseTratada_(ss, matrizes, ordemM, anexos, ordemA, oferta, uejaResumo, fusaoResumo) {
 
   var porInep = {};
   for (var a = 0; a < ordemA.length; a++) {
@@ -756,22 +886,28 @@ function gravarBaseTratada_(ss, matrizes, ordemM, anexos, ordemA, uetepIdx, ueja
     "Parciais 2026", "Possíveis Fusões", "Salas Necessárias 2027", "Crescimento",
     "Resumo Hoje", "Resumo 2027", "Matrículas e Turmas EJA",
     "9º Ano nesta escola · turmas", "9º Ano nesta escola · matrículas",
-    "UETEP · novas matrículas 2027", "UETEP · turmas previstas",
-    "UETEP · detalhe por curso", "EJA fora do prédio matriz",
+    "Oferta 2027 · 1ª série (alunos previstos)", "Oferta 2027 · 1ª série (turmas)",
+    "Oferta 2027 · 1ª série (cursos)", "EJA fora do prédio matriz",
     "EJA · turmas em anexo/sala externa", "EJA · matrículas em anexo/sala externa",
     "Fusão entre escolas (mesmo município)", "Anexos desta escola", "Qtd. de anexos",
-    "Salas necessárias 2027 (com UETEP)", "Município", "GRE"];
+    "Salas necessárias 2027 (oferta real)", "Município", "GRE",
+    "Oferta 2027 · 2ª série (turmas)", "Oferta 2027 · 2ª série (alunos)",
+    "Oferta 2027 · 3ª série (turmas)", "Oferta 2027 · 3ª série (alunos)",
+    "Oferta 2027 · subsequente (turmas)", "Oferta 2027 · subsequente (alunos)",
+    "Oferta 2027 · 2ª e 3ª série (cursos)", "Salas 2027 · composição",
+    "Oferta 2027 · tem oferta?"];
 
   var linhas = [];
 
   for (var k = 0; k < ordemM.length; k++) {
 
     var e = matrizes[ordemM[k]];
-    var u = uetepIdx[e.inep] || {};
-    var uT = u.turmasPrevistas || 0;
+    var of = oferta[e.inep] || null;
 
     var pSem = projetar2027_(e, 0);
-    var pCom = projetar2027_(e, uT);
+    var sal = salasOferta2027_(e, of);
+    var composicao = "integral " + sal.integral + " + máx(manhã " + sal.manha +
+                     ", tarde " + sal.tarde + ") + noite " + sal.noite;
 
     var lista = porInep[e.inep] || [];
     var txtAnexos = [];
@@ -793,18 +929,25 @@ function gravarBaseTratada_(ss, matrizes, ordemM, anexos, ordemA, uetepIdx, ueja
       montarFusoes_(e), pSem.salasNec, pSem.delta, resumoHoje_(e), resumo27,
       e.totalEJA > 0 ? (e.totalEJAentm + " matrículas | " + e.totalEJA + " turmas") : "—",
       e.ef9Turmas, e.ef9Matriculas,
-      u.pre || 0, uT, u.resumo || "—",
+      of ? of.of1Alunos : 0, of ? of.of1Turmas : 0,
+      of ? of.of1Detalhe : "— sem oferta de EM em 2027",
       uejaResumo[e.inep] || "Sem oferta de EJA",
       e.ejaAnexoTurmas, e.ejaAnexoMatriculas,
       fusaoResumo[e.inep] || "—",
       txtAnexos.length ? txtAnexos.join("\n") : "—", lista.length,
-      pCom.salasNec, semAcento_(e.municipio), e.gre]);
+      sal.salas, semAcento_(e.municipio), e.gre,
+      of ? of.co2Turmas : 0, of ? of.co2Alunos : 0,
+      of ? of.co3Turmas : 0, of ? of.co3Alunos : 0,
+      of ? of.subTurmas : 0, of ? of.subAlunos : 0,
+      of ? (of.co2Detalhe + " || " + of.co3Detalhe) : "—",
+      composicao, of ? "SIM" : "NÃO"]);
   }
 
   gravar_(ss, ABA_BT, h, linhas,
     [100, 220, 400, 70, 70, 70, 380, 160, 280, 220, 360, 90, 80, 280, 300, 200,
-     100, 110, 120, 100, 340, 300, 110, 120, 400, 320, 80, 120, 180, 110],
-    [3, 7, 8, 9, 10, 11, 14, 15, 16, 21, 22, 25, 26]);
+     100, 110, 130, 110, 400, 300, 110, 120, 400, 320, 80, 130, 180, 110,
+     110, 110, 110, 110, 120, 120, 400, 300, 100],
+    [3, 7, 8, 9, 10, 11, 14, 15, 16, 21, 22, 25, 26, 37, 38]);
 }
 
 
@@ -851,12 +994,43 @@ function gravarBaseAnexos_(ss, anexos, ordemA) {
 }
 
 
-function gravarUETEP_(ss, linhas) {
-  gravar_(ss, ABA_UETEP,
-    ["INEP", "GRE", "Município", "Escola", "Etapa", "Curso", "Turma", "Turno",
-     "Pré-matrículas (oferta nova)", "Enturmados hoje", "Cursando",
-     "Salas previstas para esta oferta"],
-    linhas, [100, 110, 160, 240, 130, 400, 280, 90, 130, 100, 90, 130], [6, 7]);
+function gravarBaseUETEP_(ss, oferta, matrizes) {
+
+  var h = ["INEP", "GRE", "Município", "Escola",
+    "1ª série 2027 · turmas", "1ª série 2027 · cursos", "1ª série 2027 · alunos previstos",
+    "2ª série 2027 · turmas", "2ª série 2027 · alunos", "2ª série 2027 · cursos",
+    "3ª série 2027 · turmas", "3ª série 2027 · alunos", "3ª série 2027 · cursos",
+    "Subsequente 2027 · turmas", "Subsequente 2027 · alunos", "Subsequente 2027 · cursos",
+    "Total de turmas 2027", "Salas necessárias 2027 (oferta real)", "Composição das salas"];
+
+  var ks = Object.keys(oferta);
+  ks.sort(function (a, b) {
+    var x = oferta[a], y = oferta[b];
+    if (x.gre !== y.gre) return x.gre < y.gre ? -1 : 1;
+    if (x.municipio !== y.municipio) return x.municipio < y.municipio ? -1 : 1;
+    return x.escola < y.escola ? -1 : 1;
+  });
+
+  var linhas = [];
+  for (var i = 0; i < ks.length; i++) {
+    var o = oferta[ks[i]];
+    var e = matrizes[ks[i]];
+    var sal = e ? salasOferta2027_(e, o) : null;
+    linhas.push([Number(o.inep), o.gre, semAcento_(o.municipio), o.escola,
+      o.of1Turmas, o.of1Detalhe, o.of1Alunos,
+      o.co2Turmas, o.co2Alunos, o.co2Detalhe,
+      o.co3Turmas, o.co3Alunos, o.co3Detalhe,
+      o.subTurmas, o.subAlunos, o.subDetalhe,
+      o.totalTurmas,
+      sal ? sal.salas : "",
+      sal ? ("integral " + sal.integral + " + máx(manhã " + sal.manha +
+             ", tarde " + sal.tarde + ") + noite " + sal.noite) : ""]);
+  }
+
+  gravar_(ss, ABA_UETEP, h, linhas,
+    [100, 110, 160, 240, 110, 400, 130, 110, 110, 400, 110, 110, 400,
+     110, 110, 280, 110, 130, 300],
+    [6, 10, 13, 16, 19]);
 }
 
 
@@ -1010,7 +1184,7 @@ function formulasV2_(ss, nBT, nPM, nGD, nID, nFT) {
   if (n < 2) return;
   var qtd = n - 1;
 
-  semear_(sh, nBT, [[13, 4], [17, 5], [18, 6], [24, 12]]);   // ★ vazias → projeção
+  semear_(sh, nBT, [[13, 20], [17, 31], [18, 33], [24, 28]]);   // ★ vazias → oferta 2027
   municipios_(sh, nGD, qtd);
 
   var cols = {};
@@ -1040,6 +1214,14 @@ function formulasV2_(ss, nBT, nPM, nGD, nID, nFT) {
   cols[33] = 'IF($A@="","",$M@&" de 1ª | "&$Q@&" de 2ª | "&$R@&" de 3ª | ' +
              'Necessidade: "&$X@&" salas | "&$Y@)';
   cols[34] = gd_("$A@", 18, nGD, '"—"');
+  cols[39] = bt_("$A@", 20, nBT, "0");
+  cols[40] = bt_("$A@", 31, nBT, "0");
+  cols[41] = bt_("$A@", 33, nBT, "0");
+  cols[42] = 'IF($A@="","",IF(AND($M@=' + bt_("$A@", 20, nBT, "0") + ',$Q@=' +
+             bt_("$A@", 31, nBT, "0") + ',$R@=' + bt_("$A@", 33, nBT, "0") +
+             '),"igual à oferta","decidido "&$M@&"/"&$Q@&"/"&$R@&" · oferta "&' +
+             bt_("$A@", 20, nBT, "0") + '&"/"&' + bt_("$A@", 31, nBT, "0") +
+             '&"/"&' + bt_("$A@", 33, nBT, "0") + '))';
 
   aplicar_(sh, cols, qtd);
 
@@ -1058,7 +1240,7 @@ function formulasV3_(ss, nBT, nPM, nGD, nID, nFE) {
   if (n < 2) return;
   var qtd = n - 1;
 
-  semear_(sh, nBT, [[15, 4], [19, 5], [20, 6], [31, 28]]);
+  semear_(sh, nBT, [[15, 20], [19, 31], [20, 33], [31, 28]]);   // ★ vazias → oferta 2027
   municipios_(sh, nGD, qtd);
 
   var cols = {};
@@ -1077,9 +1259,11 @@ function formulasV3_(ss, nBT, nPM, nGD, nID, nFE) {
   cols[11] = falta_("$C@", 13, nPM);
   cols[13] = ideb_("$C@", 2, nID);
   cols[16] = bt_("$A@", 3, nBT, '"—"');
-  cols[21] = bt_("$A@", 19, nBT, "0");
-  cols[22] = bt_("$A@", 21, nBT, '"—"');
-  cols[23] = bt_("$A@", 20, nBT, "0");
+  cols[21] = bt_("$A@", 20, nBT, "0");                       // 1ª série 2027 (turmas)
+  cols[22] = bt_("$A@", 21, nBT, '"—"');                     // cursos da 1ª série
+  cols[23] = 'IF($A@="","",' + bt_("$A@", 31, nBT, "0") + '&" de 2ª | "&' +
+             bt_("$A@", 33, nBT, "0") + '&" de 3ª | "&' +
+             bt_("$A@", 35, nBT, "0") + '&" subseq.")';
   cols[24] = bt_("$A@", 10, nBT, '"—"');
   cols[26] = bt_("$A@", 11, nBT, '"—"');
   cols[27] = "IFERROR(IF(COUNTIF('" + ABA_FE + "'!$F$2:$F$" + nFE + ",$A@)+COUNTIF('" +
@@ -1088,9 +1272,9 @@ function formulasV3_(ss, nBT, nPM, nGD, nID, nFE) {
   cols[29] = gd_("$A@", 6, nGD);
   // cada turma que a reunião decidir a mais ou a menos move a sala na mesma medida
   cols[30] = 'IF($A@="","",MAX(0,' + bt_("$A@", 28, nBT, "0") +
-             "+($O@-" + bt_("$A@", 4, nBT, "0") + ")" +
-             "+($S@-" + bt_("$A@", 5, nBT, "0") + ")" +
-             "+($T@-" + bt_("$A@", 6, nBT, "0") + ")))";
+             "+($O@-" + bt_("$A@", 20, nBT, "0") + ")" +
+             "+($S@-" + bt_("$A@", 31, nBT, "0") + ")" +
+             "+($T@-" + bt_("$A@", 33, nBT, "0") + ")))";
   cols[32] = situacaoSala_("$AC", "$AE");
   cols[33] = bt_("$A@", 7, nBT, '"—"');
   cols[34] = bt_("$A@", 16, nBT, '"—"');
@@ -1100,6 +1284,13 @@ function formulasV3_(ss, nBT, nPM, nGD, nID, nFE) {
   cols[43] = 'IF($A@="","",$O@&" de 1ª | "&$S@&" de 2ª | "&$T@&" de 3ª | UETEP "&$W@' +
              '&" | Necessidade: "&$AE@&" salas | "&$AF@)';
   cols[44] = gd_("$A@", 18, nGD, '"—"');
+  cols[49] = 'IF($A@="","",' + bt_("$A@", 32, nBT, "0") + "+" +
+             bt_("$A@", 34, nBT, "0") + '&" aluno(s)")';
+  cols[50] = 'IF($A@="","",IF(AND($O@=' + bt_("$A@", 20, nBT, "0") + ',$S@=' +
+             bt_("$A@", 31, nBT, "0") + ',$T@=' + bt_("$A@", 33, nBT, "0") +
+             '),"igual à oferta","decidido "&$O@&"/"&$S@&"/"&$T@&" · oferta "&' +
+             bt_("$A@", 20, nBT, "0") + '&"/"&' + bt_("$A@", 31, nBT, "0") +
+             '&"/"&' + bt_("$A@", 33, nBT, "0") + '))';
 
   aplicar_(sh, cols, qtd);
 
@@ -1115,7 +1306,7 @@ function formulasV3_(ss, nBT, nPM, nGD, nID, nFE) {
 // ─────────────────────────────────────────── montadores de fórmula
 
 function bt_(chave, col, n, err) {
-  return "IFERROR(VLOOKUP(" + chave + ",'" + ABA_BT + "'!$A$2:$AD$" + n + "," +
+  return "IFERROR(VLOOKUP(" + chave + ",'" + ABA_BT + "'!$A$2:$AM$" + n + "," +
          col + ",FALSE)," + (err || '""') + ")";
 }
 function pm_(chave, col, n, err) {

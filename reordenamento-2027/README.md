@@ -142,7 +142,10 @@ reescrito quando o script roda.
 | `Panorama Municipal` | 227 | Demanda de 1ª série por município e o contador de turmas |
 | `Fusão Turmas` | 62 | Fusão turma a turma (aba que já existia) |
 | `Fusão Entre Escolas` | 138 | Sugestão nova, por município |
-| `Base UETEP` | 466 | Ofertas novas e as salas que elas pedem |
+| `Base UETEP` | 497 | Oferta 2027 por escola: 1ª, 2ª, 3ª, subsequente e salas |
+| `UETEP · Oferta Integral 2027` | 1.352 | 1ª série de 2027, escola × curso |
+| `UETEP · Continuidade 2027` | 2.496 | 2ª e 3ª série, uma linha por turma |
+| `UETEP · Subsequente 2027` | 48 | Oferta subsequente |
 | `Base UEJA` | 535 | Onde cada oferta de EJA acontece |
 | `IDEB Municípios` | 227 | **Para preencher à mão** |
 | `Cursos` | 44 | Lista oficial de 2027 |
@@ -192,6 +195,109 @@ atualização e devolvidas depois.
 branco. Enquanto não forem preenchidas, a coluna IDEB mostra
 `— sem IDEB cadastrado` e a aba de fusão mostra `— sem IDEB`. Assim que as notas
 entrarem, as duas passam a mostrar o valor sozinhas.
+
+---
+
+## A base real da UETEP (segunda entrega)
+
+A primeira versão trazia uma aba `Base UETEP` que eu **inferi** da aba
+`Matriculas por etapa`, com a regra *"turma sem enturmados e com pré-matrícula é
+oferta nova"*. A base de verdade não estava em nenhum dos arquivos de origem, e
+eu devia ter dito isso na entrega em vez de só chamar a aba de `Base UETEP`.
+
+A regra pegava lixo: 6 dos 30 cursos que ela classificava como oferta nova de
+2027 não existem na oferta real — entre eles `AGRICULTOR FAMILIAR` no CETI Darcy
+Ribeiro, uma linha sem nome de turma, com 26 pré-matrículas que nunca viraram
+turma. Resíduo de 2026.
+
+A base correta é a `OFERTA_2027_BASE.xlsx`, e ela não é "matrículas novas para
+prever sala" — é **a oferta de 2027 inteira, já decidida**:
+
+| Aba | Linhas | O que é |
+|---|---:|---|
+| `UETEP · Oferta Integral 2027` | 1.352 | 1ª série de 2027 por escola × curso — 1.454 turmas, 496 escolas |
+| `UETEP · Continuidade 2027` | 2.496 | Uma linha por turma de 2ª e 3ª série — 1.254 + 1.242 turmas, 72.713 alunos |
+| `UETEP · Subsequente 2027` | 48 | 58 turmas, 2.030 alunos, 41 escolas |
+
+Isso substitui a regra de progressão (1ª→2ª, 2ª→3ª):
+
+| | hoje 2026 | projeção antiga | oferta 2027 | dif |
+|---|---:|---:|---:|---:|
+| 1ª série | 1.156 | 1.156 | **1.454** | +298 |
+| 2ª série | 1.170 | 1.156 | **1.254** | +98 |
+| 3ª série | 1.208 | 1.170 | **1.242** | +72 |
+| Total | 3.534 | 3.482 | **3.950** | +468 |
+
+A projeção só acertava em 255 das 576 escolas.
+
+### Salas com a oferta real
+
+```
+integral = 1ª + 2ª + 3ª + subsequente (a oferta da UETEP é integral)
+           + fundamental integral + outras turmas de EM integrais
+manhã e tarde dividem a mesma sala → vale o maior dos dois
+noite fica à parte · EJA não entra
+```
+
+A coluna `Salas 2027 · composição`, na Base Tratada e na Base UETEP, mostra as
+quatro parcelas para conferência.
+
+### Três coisas na base que valem conferência
+
+- **Linha de total no rodapé** de duas abas, sem INEP (`Oferta Integral` linha
+  1354 = 1.454/58.160; `Subsequente` linha 50 = 58). O script descarta.
+- **`PREVISÃO DE ALUNOS` é sempre turmas × 40** — é capacidade, não demanda.
+  Serve para dimensionar sala, não para analisar fusão. Os alunos reais só
+  existem na aba de continuidade.
+- **Dois casos de escola + curso repetidos**, os dois no CETI Governador Freitas
+  Neto (Desenvolvimento de Sistemas 2+2, Administração 1+2). Turnos diferentes
+  ou duplicação?
+
+E o **ECOESCOLA THOMAS A KEMPIS** tem 1 turma de 1ª série hoje e não aparece na
+oferta de 2027. Das 80 escolas sem oferta integral, é a única com ensino médio
+hoje — as outras 79 são unidades de EJA e fundamental.
+
+---
+
+## Preservação do trabalho manual
+
+A segunda entrega foi aplicada **sobre** a planilha em uso, não regerada. O que
+mudou, e só isso:
+
+| Aba | Colunas tocadas |
+|---|---|
+| `Base Tratada` | S, T, U (1ª série de 2027) e AB (salas) mudaram de fonte; 9 colunas novas ao fim |
+| `Reordenamento 2027 V2` | ★M e ★X re-semeadas; 4 colunas de referência ao fim |
+| `Reordenamento 2027 V3` | ★O, ★S, ★T, ★AE re-semeadas; U/V/W repontadas; 2 colunas ao fim |
+
+Regra da re-semeadura: a célula ★ só é atualizada se ainda for **exatamente** o
+valor que a entrega anterior semeou. Qualquer célula digitada é preservada e
+listada. Na conferência, uma decisão real foi encontrada e preservada — V3,
+★ 1ª SÉRIE, INEP 22136703 = 4.
+
+Ficaram intocadas: `IDEB - MUNICIPIO`, `IDEB - ESCOLAS`, `Base Anexos (1)` e as
+fórmulas que vocês escreveram nela, `antiga base anexos`, `Panorama Municipal`
+coluna O, `Fusão Turmas`, `Fusão Entre Escolas`, `Base UEJA`, `Turmas`,
+`Matriculas por etapa`, `Cursos`, `Validações` e a aba V1.
+
+O script também **parou de gerenciar a Base Anexos**: se `Base Anexos (1)`
+existir, ele não encosta nela.
+
+### Backup e reversão
+
+A aba `★ Backup antes da UETEP` guarda o valor anterior das seis colunas ★.
+Para desfazer, é copiar de volta.
+
+### Base GDI
+
+A aba era um `IMPORTRANGE` que o download em .xlsx congelou em
+`=IFERROR(__xludf.DUMMYFUNCTION("IMPORTRANGE(...)"), valor)`. Essa fórmula não
+existe no Sheets — o que aparece é sempre o argumento de reserva, e em parte das
+células a reserva está vazia: 21 observações longas só viviam no cache do
+arquivo e sumiriam em qualquer conversão, com ou sem mim.
+
+A aba foi gravada como valor, e a aba `Como restaurar o IMPORTRANGE` traz a
+fórmula original para religar a origem quando quiserem.
 
 ---
 
