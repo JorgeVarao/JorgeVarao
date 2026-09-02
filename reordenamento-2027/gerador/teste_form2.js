@@ -56,10 +56,12 @@ for (const k of Object.keys(gsSaida))
   abas[k] = aba(k, [gsSaida[k].headers].concat(gsSaida[k].linhas));
 // V2 e V3 com os mesmos INEPs do .xlsx
 const ineps = gsSaida["Base Tratada"].linhas.map(r => r[0]);
+const cabV2 = JSON.parse(fs.readFileSync("cab_v2.json","utf8"));
 abas["Reordenamento 2027 V2"] = aba("Reordenamento 2027 V2",
-  [new Array(38).fill("")].concat(ineps.map(i => { const L=new Array(38).fill(""); L[0]=i; return L; })));
+  [cabV2].concat(ineps.map(i => { const L=new Array(cabV2.length).fill(""); L[0]=i; return L; })));
+const cabV3 = JSON.parse(fs.readFileSync(process.env.CAB_V3 || "cab_v3.json","utf8"));
 abas["Reordenamento 2027 V3"] = aba("Reordenamento 2027 V3",
-  [new Array(51).fill("")].concat(ineps.map(i => { const L=new Array(51).fill(""); L[0]=i; return L; })));
+  [cabV3].concat(ineps.map(i => { const L=new Array(cabV3.length).fill(""); L[0]=i; return L; })));
 abas["Fusão Turmas"] = aba("Fusão Turmas", new Array(63).fill(0).map(()=>new Array(18).fill("")));
 abas["IDEB - ESCOLAS"] = aba("IDEB - ESCOLAS", new Array(531).fill(0).map(()=>new Array(6).fill("")));
 
@@ -80,6 +82,6 @@ eval(fonte);
 atualizarBases(true);
 reescreverFormulas(true);
 fs.writeFileSync("gs_grav2.json", JSON.stringify(grav));
-fs.writeFileSync("gs_formulas.json", JSON.stringify(escritas));
+fs.writeFileSync(process.env.SAIDA || "gs_formulas.json", JSON.stringify(escritas));
 for (const a of Object.keys(escritas))
   console.log(a, "→ colunas:", Object.keys(escritas[a]).join(","));

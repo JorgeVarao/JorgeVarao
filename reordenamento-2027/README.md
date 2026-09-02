@@ -334,6 +334,45 @@ quem roda o script depois.
 
 ---
 
+## Colunas resolvidas pelo nome
+
+O script não usa mais letra nem número de coluna: ele procura o **nome escrito na
+linha 1** da aba. Mover ou inserir coluna deixou de quebrar as fórmulas.
+
+```
+NOMES_COLUNAS["Reordenamento 2027 V3"] = {
+  salasDecide: ["★ SALAS NECESSÁRIAS", 35],
+  ...
+}
+                    nome procurado    posição de reserva
+```
+
+Cada coluna é declarada como `[nome, posição de reserva]`. A posição só entra em
+cena quando o nome não aparece na linha 1 — o que acontece nas abas que chegam por
+IMPORTRANGE e às vezes vêm sem cabeçalho legível. Quando isso ocorre fica um aviso
+no registro de execução (**Extensões → Apps Script → Execuções**).
+
+O bloco `NOMES_COLUNAS`, no topo do arquivo, é o único lugar que precisa saber como
+as colunas se chamam. Para renomear uma coluna na planilha, mude o nome ali também.
+
+A busca aceita o nome exato ou o começo dele, ignora acento, caixa e quebra de
+linha — então `★ SALAS NECESSÁRIAS\n2027 — DECIDA AQUI` é encontrado por
+`★ SALAS NECESSÁRIAS`.
+
+**Uma coisa que ele não faz:** adivinhar uma coluna *apagada*. Aí ele avisa e cai
+na posição de reserva. Se a coluna saiu de propósito, tire-a do `NOMES_COLUNAS`.
+
+### Como isso foi conferido
+
+- as 5 bases geradas saem **idênticas** às de antes da mudança, linha a linha
+- as 17.856 fórmulas da V3 saem **byte a byte iguais** no layout normal
+- movendo `★ SALAS` de `AI` para `B`, as fórmulas acompanham: `$AI2` vira `$B2` e
+  as colunas deslocadas se reajustam sozinhas
+- as **217 colunas declaradas** foram todas resolvidas pelo nome, nenhuma caiu na
+  posição de reserva (`gerador/teste_nomes.js`)
+
+---
+
 ## Preservação do trabalho manual
 
 A segunda entrega foi aplicada **sobre** a planilha em uso, não regerada. O que

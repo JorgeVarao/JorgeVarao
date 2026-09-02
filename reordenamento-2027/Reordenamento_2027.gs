@@ -69,6 +69,263 @@ var ABA_V2      = "Reordenamento 2027 V2";
 var ABA_V3      = "Reordenamento 2027 V3";
 
 
+
+// ═════════════════════════════════════════════════════════════════════
+//  0. COLUNAS POR NOME
+// ═════════════════════════════════════════════════════════════════════
+
+/*
+ * O script não usa letra nem número de coluna: procura pelo NOME que está
+ * escrito na linha 1 da aba. Assim, mover ou inserir coluna não quebra nada.
+ *
+ * Cada entrada abaixo é [nome do cabeçalho, posição de reserva]. A posição só
+ * é usada quando o nome não aparece na linha 1 — o que acontece nas abas que
+ * chegam por IMPORTRANGE e às vezes vêm sem cabeçalho legível. Quando isso
+ * ocorre, fica um aviso no registro de execução.
+ *
+ * Para renomear uma coluna na planilha, mude o nome aqui também. É o único
+ * lugar do arquivo que precisa saber como as colunas se chamam.
+ */
+
+var NOMES_COLUNAS = {};
+
+NOMES_COLUNAS[ABA_TURMAS] = {
+  inep:["INEP",1], escola:["Escola",2], anexo:["Anexo",3], curso:["Curso",4],
+  etapa:["Etapa",5], organizacao:["Organização da turma",6], periodo:["Período",7],
+  turno:["Turno",8], enturmados:["Enturmados",9], turmas:["Turmas",10]
+};
+
+NOMES_COLUNAS[ABA_GDI] = {
+  inep:["INEP",1], gre:["GRE",3], municipio:["MUNICIPIO",4], escola:["NOME ENTIDADE",5],
+  salas:["Nº SLS DE AULA",6], proj2026:["PROJEÇÃO TURMA(S) 2026",14],
+  proj2027:["PROJEÇÃO TURMA(S) 2027",15], escolaProxima:["ESCOLA MAIS PRÓXIMA",18]
+};
+
+NOMES_COLUNAS[ABA_MPE] = {
+  inep:["Inep Escola",5], turno:["Turno",8], etapa:["Abreviação Etapa",10],
+  turma:["Nome Turma",13], curso:["Nome Curso",15], ativas:["Ativas",16],
+  enturmados:["Enturmados",17], cursando:["Cursando",18], pre:["Pré Matrícula",19]
+};
+
+NOMES_COLUNAS[ABA_OF1] = {
+  gre:["GRE",1], municipio:["Municipio",2], inep:["INEP da Entidade",3],
+  escola:["Entidade",4], turmas:["TURMAS 2027",5],
+  curso:["CURSOS PRE-DEFINIDOS 2027",6], alunos:["PREVISÃO DE ALUNOS",7]
+};
+
+NOMES_COLUNAS[ABA_OFC] = {
+  gre:["GRE",1], municipio:["Municipio",2], inep:["INEP da Entidade",3],
+  escola:["Entidade",4], curso:["Curso",5], etapa:["Etapa",6], alunos:["Qtd Alunos",7]
+};
+
+NOMES_COLUNAS[ABA_OFS] = {
+  gre:["GRE",1], municipio:["Municipio",2], inep:["INEP da Entidade",3],
+  escola:["Entidade",4], turmas:["PROJEÇÃO 1ª SÉRIE",5],
+  curso:["CURSOS PRE-DEFINIDOS 2027",6], eixo:["EIXO",7], alunos:["ALUNOS",8]
+};
+
+NOMES_COLUNAS[ABA_PAN] = {
+  municipio:["Município",1], todasRedes:["9º Ano · todas as redes (Censo)",2],
+  refTurmas:["Turmas necessárias (referência)",3],
+  est9Alunos:["9º Ano na rede estadual (2026)",4],
+  est9Turmas:["9º Ano estadual · turmas",5],
+  outrasRedes:["9º Ano · outras redes (estimado)",6],
+  demanda:["Demanda total de 1ª série 2027 (alunos)",7],
+  necessarias:["Turmas necessárias 2027 (recalculado)",8],
+  fonte:["Fonte do 9º Ano",9],
+  decididaV2:["1ª série decidida — V2",10], saldoV2:["Saldo — V2",11],
+  decididaV3:["1ª série decidida — V3",12], saldoV3:["Saldo — V3",13],
+  cobertura:["Cobertura — V3",14]
+};
+
+NOMES_COLUNAS[ABA_BT] = {
+  inep:["INEP",1], escola:["Escola",2], ofertaEM:["Oferta EM 2026",3],
+  s1_2026:["1ª Série 2026",4], s2_proj:["2ª Série 2027",5], s3_proj:["3ª Série 2027",6],
+  ofertaEJA:["Oferta EJA 2026",7], turmasEJA:["Turmas EJA",8],
+  ofertaFund:["Oferta Fundamental",9], parciais:["Parciais 2026",10],
+  fusoes:["Possíveis Fusões",11], salasProj:["Salas Necessárias 2027",12],
+  crescimento:["Crescimento",13], resumoHoje:["Resumo Hoje",14],
+  resumo2027:["Resumo 2027",15], matrTurmasEJA:["Matrículas e Turmas EJA",16],
+  ano9Turmas:["9º Ano nesta escola · turmas",17],
+  ano9Matr:["9º Ano nesta escola · matrículas",18],
+  of1Alunos:["Oferta 2027 · 1ª série (alunos previstos)",19],
+  of1Turmas:["Oferta 2027 · 1ª série (turmas)",20],
+  of1Cursos:["Oferta 2027 · 1ª série (cursos)",21],
+  ejaFora:["EJA fora do prédio matriz",22],
+  ejaAnexoTurmas:["EJA · turmas em anexo/sala externa",23],
+  ejaAnexoMatr:["EJA · matrículas em anexo/sala externa",24],
+  fusaoEntre:["Fusão entre escolas (mesmo município)",25],
+  anexos:["Anexos desta escola",26], qtdAnexos:["Qtd. de anexos",27],
+  salasReal:["Salas necessárias 2027 (oferta real)",28],
+  municipio:["Município",29], gre:["GRE",30],
+  co2Turmas:["Oferta 2027 · 2ª série (turmas)",31],
+  co2Alunos:["Oferta 2027 · 2ª série (alunos)",32],
+  co3Turmas:["Oferta 2027 · 3ª série (turmas)",33],
+  co3Alunos:["Oferta 2027 · 3ª série (alunos)",34],
+  subTurmas:["Oferta 2027 · subsequente (turmas)",35],
+  subAlunos:["Oferta 2027 · subsequente (alunos)",36],
+  co23Cursos:["Oferta 2027 · 2ª e 3ª série (cursos)",37],
+  composicao:["Salas 2027 · composição",38], temOferta:["Oferta 2027 · tem oferta?",39],
+  fund2026:["Fundamental 2026 · turmas",40], soEJA:["Só EJA (CEJA)?",41],
+  ejaMatrizTurmas:["EJA 2026 · turmas no prédio matriz",42],
+  ejaMatrizMatr:["EJA 2026 · matrículas no prédio matriz",43],
+  zeradas:["Turmas zeradas descartadas",44]
+};
+
+NOMES_COLUNAS[ABA_IDEB] = {
+  municipio:["Município",1], ideb:["IDEB Ensino Médio",2],
+  ano:["Ano de referência",3], obs:["Observação",4]
+};
+
+NOMES_COLUNAS[ABA_VAL] = {
+  fundamental:["FUNDAMENTAL",1], ejaSeg1:["EJA · Seg I",2], ejaSeg2:["EJA · Seg II",3],
+  ejaSeg3Tec:["EJA · Seg III\nEM Técnico",4], ejaSeg3Fic:["EJA · Seg III\nEM FIC",5],
+  turnos:["TURNOS",6], movEJA:["MOVIMENTO",7], validFusao:["VALIDAÇÃO",8],
+  reordenamento:["REORDENAMENTO",9], destinoAnexo:["DESTINO DA OFERTA",10],
+  cursosQtd:["CURSOS 1ª SÉRIE",11], fundQtd:["FUNDAMENTAL\ncom quantidade",12],
+  decisaoAnexo:["DECISÃO SOBRE",13]
+};
+
+NOMES_COLUNAS[ABA_V2] = {
+  inep:["INEP",1], gre:["GRE",2], municipio:["Município",3], escola:["Escola",4],
+  turmasHoje:["Turmas hoje",5], turmas2027:["Turmas 2027",6],
+  ofertaFund:["Oferta\nFundamental",7], ano9:["9º Ano do município",8],
+  faltam:["Ainda faltam no município",9], estrelaFund:["★ FUNDAMENTAL",10],
+  ideb:["IDEB",11], s1_2026:["1ª Série\n2026",12], s1_2027:["★ 1ª SÉRIE 2027",13],
+  cursos2026:["Cursos EM 2026",14], cursos2027:["★ CURSOS 1ª SÉRIE",15],
+  alteracaoEMI:["ALTERAÇÃO DE CURSOS EMI",16], s2_2027:["2ª Série\n2027",17],
+  s3_2027:["3ª Série\n2027",18], parciais:["Parciais 2026",19],
+  parciaisJust:["Parciais 2026 justificativa",20], fusoes:["Possíveis\nFusões",21],
+  validFusao:["Validações Fusões Turmas",22], salasExist:["Salas\nexistentes",23],
+  salasDecide:["★ SALAS NECESSÁRIAS",24], situacao:["Situação\nda sala",25],
+  ofertaEJA:["Oferta EJA",26], matrEJA:["Matrículas / Turmas",27],
+  ejaTurmas:["★ EJA Turmas",28], ejaCursos:["★ EJA Cursos",29],
+  anexos:["ANEXOS",30], cursos:["CURSOS",31], reservado:["(reservado)",32],
+  resumo:["Resumo 2027",33], escolaProxima:["Escola Próxima",34],
+  reord:["Reordenamento\n2027",35], justificativa:["Justificativa",36],
+  observacao:["Observação",37], pronto:["✓ Pronto",38],
+  of1:["Oferta 2027 ·\n1ª série (turmas)",39], of2:["Oferta 2027 ·\n2ª série (turmas)",40],
+  of3:["Oferta 2027 ·\n3ª série (turmas)",41], divergencia:["★ x Oferta 2027",42]
+};
+
+NOMES_COLUNAS[ABA_V3] = {
+  inep:["INEP",1], gre:["GRE",2], municipio:["Município",3], escola:["Escola",4],
+  turmasHoje:["Turmas hoje",5], turmas2027:["Turmas 2027",6],
+  ofertaFund:["Oferta\nFundamental",7],
+  fundEtapas:["★ FUNDAMENTAL 2027",8], fundTurmas:["★ TURMAS FUNDAMENTAL",9],
+  fundTotal:["Fundamental 2027 ·",10],
+  ano9Escola:["9º Ano NESTA escola",11], ano9Municipio:["9º Ano do município",12],
+  demanda:["Demanda total de",13], faltam:["Ainda faltam",14], ideb:["IDEB DA ESCOLA",15],
+  s1_2026:["1ª Série\n2026",16], s1_2027:["★ 1ª SÉRIE 2027",17],
+  cursos2026:["Cursos EM 2026",18], cursos2027:["★ CURSOS 1ª SÉRIE 2027",19],
+  cursosTurmas:["★ TURMAS 1ª SÉRIE 2027",20], cursosTotal:["1ª série 2027 ·",21],
+  alteracaoEMI:["★ ALTERAÇÃO DE",22], s2_2027:["★ 2ª SÉRIE 2027",23],
+  s3_2027:["★ 3ª SÉRIE 2027",24],
+  of1:["Oferta 2027 ·\n1ª série (turmas)",25], ofCursos:["Oferta 2027 ·\ncursos da 1ª série",26],
+  of23sub:["Oferta 2027 ·\n2ª / 3ª / subseq.",27],
+  parciais:["Parciais 2026",28], parciaisJust:["★ Parciais 2026",29],
+  fusaoPropria:["Possíveis fusões",30], fusaoEntre:["Fusão ENTRE ESCOLAS",31],
+  fusaoValid:["★ Validação",32],
+  salasExist:["Salas\nexistentes",33], salasCalc:["Salas necessárias\n2027 (calculado)",34],
+  salasDecide:["★ SALAS NECESSÁRIAS",35], salasSituacao:["Situação\nda sala",36],
+  ejaOferta:["Oferta EJA 2026",37], ejaMatriculas:["Matrículas / Turmas EJA",38],
+  ejaFora:["EJA fora do prédio",39], ejaTurmas:["★ EJA TURMAS 2027",40],
+  anexosLista:["Anexos desta",41], anexosQtd:["Qtd. de\nanexos",42],
+  anexosDecisao:["★ DECISÃO SOBRE",43],
+  resumo:["Resumo 2027",44], escolaProxima:["Escola Próxima",45],
+  reord:["★ Reordenamento",46], justificativa:["★ Justificativa",47],
+  observacao:["★ Observação",48], pronto:["✓ Pronto",49],
+  ofAlunos23:["Oferta 2027 ·\nalunos reais 2ª/3ª",50], divergencia:["★ x Oferta 2027",51]
+};
+
+
+var _cacheColunas = {};
+
+/** Limpa o cache de cabeçalhos. Chamado no começo de cada rodada. */
+function limparCacheColunas_() { _cacheColunas = {}; }
+
+
+/** Cabeçalho normalizado: sem acento, sem quebra de linha, maiúsculo. */
+function chaveCabecalho_(v) {
+  return semAcento_(String(v === null || v === undefined ? "" : v))
+           .replace(/\s+/g, " ").trim();
+}
+
+
+/**
+ * Resolve todas as colunas de uma aba pelo nome escrito na linha 1.
+ * Devolve { apelido: número da coluna }, com base 1.
+ */
+function colunasDe_(ss, aba) {
+
+  if (_cacheColunas[aba]) return _cacheColunas[aba];
+
+  var mapa = {};
+  var esperados = NOMES_COLUNAS[aba] || {};
+  var sh = ss.getSheetByName(aba);
+
+  var presentes = {};
+  if (sh && sh.getLastColumn() > 0) {
+    var cab = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    for (var c = 0; c < cab.length; c++) {
+      var k = chaveCabecalho_(cab[c]);
+      if (k && presentes[k] === undefined) presentes[k] = c + 1;
+    }
+  }
+
+  var apelidos = Object.keys(esperados);
+  for (var i = 0; i < apelidos.length; i++) {
+
+    var nome = esperados[apelidos[i]][0];
+    var reserva = esperados[apelidos[i]][1];
+    var alvo = chaveCabecalho_(nome);
+
+    if (presentes[alvo] !== undefined) {          // nome bate exatamente
+      mapa[apelidos[i]] = presentes[alvo];
+      continue;
+    }
+
+    var achou = 0;                                 // senão, procura por começo
+    var chaves = Object.keys(presentes);
+    for (var j = 0; j < chaves.length; j++) {
+      if (chaves[j].indexOf(alvo) === 0) { achou = presentes[chaves[j]]; break; }
+    }
+
+    if (achou) {
+      mapa[apelidos[i]] = achou;
+    } else {
+      mapa[apelidos[i]] = reserva;
+      if (sh) Logger.log('Coluna "' + nome + '" não encontrada em "' + aba +
+                         '". Usando a posição de reserva ' + letra_(reserva) + '.');
+    }
+  }
+
+  _cacheColunas[aba] = mapa;
+  return mapa;
+}
+
+
+/** Número da coluna (base 1) pelo apelido. */
+function col_(ss, aba, apelido) {
+  var n = colunasDe_(ss, aba)[apelido];
+  if (!n) throw new Error('Coluna "' + apelido + '" não está declarada para a aba "' + aba + '".');
+  return n;
+}
+
+/** Índice base 0, para ler de uma matriz de getValues(). */
+function ix_(ss, aba, apelido) { return col_(ss, aba, apelido) - 1; }
+
+/** Letra da coluna, para montar fórmula: 1 → A, 28 → AB. */
+function letra_(n) {
+  var s = "";
+  while (n > 0) { var r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = (n - r - 1) / 26; }
+  return s;
+}
+
+/** Referência absoluta de coluna para dentro de fórmula: "$AB@". */
+function ref_(ss, aba, apelido) { return "$" + letra_(col_(ss, aba, apelido)) + "@"; }
+
+
 // ═════════════════════════════════════════════════════════════════════
 //  MENU
 // ═════════════════════════════════════════════════════════════════════
@@ -110,11 +367,13 @@ function atualizarTudo() {
 function atualizarBases(silencioso) {
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
+  limparCacheColunas_();          // as abas podem ter mudado desde a última vez
 
   var src = ss.getSheetByName(ABA_TURMAS);
   if (!src) { erro_('Aba "' + ABA_TURMAS + '" não encontrada.'); return null; }
 
   var dados = src.getDataRange().getValues();
+  var T     = colunasDe_(ss, ABA_TURMAS);
   var gdi   = mapaGDI_(ss);
 
   var matrizes = {}, ordemM = [];
@@ -123,11 +382,11 @@ function atualizarBases(silencioso) {
   for (var i = 1; i < dados.length; i++) {
 
     var r = dados[i];
-    var inep = inep_(r[0]);
+    var inep = inep_(r[T.inep - 1]);
     if (!inep) continue;
 
-    var escola = texto_(r[1]);
-    var anexo  = espacos_(r[2]);
+    var escola = texto_(r[T.escola - 1]);
+    var anexo  = espacos_(r[T.anexo - 1]);
     var meta   = gdi[inep] || {};
 
     if (!matrizes[inep]) {
@@ -136,15 +395,15 @@ function atualizarBases(silencioso) {
     }
 
     if (!anexo) {
-      acumularTurma_(matrizes[inep], r, "");
+      acumularTurma_(matrizes[inep], r, "", T);
     } else {
       var chave = inep + "|||" + anexo.toUpperCase();
       if (!anexos[chave]) {
         anexos[chave] = novaUnidade_(inep, escola || meta.escola || "", anexo, meta);
         ordemA.push(chave);
       }
-      acumularTurma_(anexos[chave], r, anexo);
-      registrarEJAExterna_(matrizes[inep], r, anexo);
+      acumularTurma_(anexos[chave], r, anexo, T);
+      registrarEJAExterna_(matrizes[inep], r, anexo, T);
     }
   }
 
@@ -193,15 +452,16 @@ function mapaGDI_(ss) {
   var mapa = {};
   if (!sh) return mapa;
   var d = sh.getDataRange().getValues();
+  var C = colunasDe_(ss, ABA_GDI);
   for (var i = 1; i < d.length; i++) {
-    var inep = inep_(d[i][0]);
+    var inep = inep_(d[i][C.inep - 1]);
     if (!inep) continue;
     mapa[inep] = {
-      gre:           texto_(d[i][2]),
-      municipio:     texto_(d[i][3]),
-      escola:        texto_(d[i][4]),
-      salas:         d[i][5],
-      escolaProxima: texto_(d[i][17])
+      gre:           texto_(d[i][C.gre - 1]),
+      municipio:     texto_(d[i][C.municipio - 1]),
+      escola:        texto_(d[i][C.escola - 1]),
+      salas:         d[i][C.salas - 1],
+      escolaProxima: texto_(d[i][C.escolaProxima - 1])
     };
   }
   return mapa;
@@ -261,12 +521,12 @@ function rotuloLocal_(t) {
 
 // ──────────────────────────────────────────────────── acumular turma
 
-function acumularTurma_(e, r, anexo) {
+function acumularTurma_(e, r, anexo, T) {
 
-  var curso = texto_(r[3]), etapa = texto_(r[4]);
-  var organizacao = texto_(r[5]), periodo = texto_(r[6]);
-  var turno = texto_(r[7]);
-  var entm = numero_(r[8]), turmas = numero_(r[9]);
+  var curso = texto_(r[T.curso - 1]), etapa = texto_(r[T.etapa - 1]);
+  var organizacao = texto_(r[T.organizacao - 1]), periodo = texto_(r[T.periodo - 1]);
+  var turno = texto_(r[T.turno - 1]);
+  var entm = numero_(r[T.enturmados - 1]), turmas = numero_(r[T.turmas - 1]);
 
   if (turmas === 0 && entm === 0 && !curso && !etapa) return;
 
@@ -385,10 +645,12 @@ function somarEJALocal_(e, anexo, curso, turmas, entm) {
 }
 
 /** A EJA que fica em anexo precisa aparecer também no consolidado da matriz. */
-function registrarEJAExterna_(matriz, r, anexo) {
-  var eU = texto_(r[4]).toUpperCase(), cU = texto_(r[3]).toUpperCase();
+function registrarEJAExterna_(matriz, r, anexo, T) {
+  var eU = texto_(r[T.etapa - 1]).toUpperCase();
+  var cU = texto_(r[T.curso - 1]).toUpperCase();
   if (eU.indexOf("EJA") === -1 && cU.indexOf("EJA") === -1) return;
-  somarEJALocal_(matriz, anexo, texto_(r[3]), numero_(r[9]), numero_(r[8]));
+  somarEJALocal_(matriz, anexo, texto_(r[T.curso - 1]),
+                 numero_(r[T.turmas - 1]), numero_(r[T.enturmados - 1]));
 }
 
 
@@ -536,24 +798,26 @@ function baseUETEP_(ss, gdi) {
   if (!sh) return { linhas: linhas, porInep: porInep };
 
   var d = sh.getDataRange().getValues();
+  var M = colunasDe_(ss, ABA_MPE);
 
   for (var i = 1; i < d.length; i++) {
 
     var r = d[i];
-    var inep = inep_(r[4]);
+    var inep = inep_(r[M.inep - 1]);
     if (!inep) continue;
 
-    var enturm = numero_(r[16]);
-    var pre    = numero_(r[18]);
+    var enturm = numero_(r[M.enturmados - 1]);
+    var pre    = numero_(r[M.pre - 1]);
     if (!(enturm === 0 && pre > 0)) continue;      // só oferta nova
 
     var meta  = gdi[inep] || {};
-    var turno = texto_(r[7]), etapa = texto_(r[9]);
-    var turma = texto_(r[12]), curso = texto_(r[14]);
+    var turno = texto_(r[M.turno - 1]), etapa = texto_(r[M.etapa - 1]);
+    var turma = texto_(r[M.turma - 1]), curso = texto_(r[M.curso - 1]);
 
     linhas.push([Number(inep), meta.gre || "", semAcento_(meta.municipio || ""),
                  meta.escola || "", etapa, curso, turma, turno,
-                 pre, enturm, numero_(r[17]), Math.max(1, Math.ceil(pre / MAX_T))]);
+                 pre, enturm, numero_(r[M.cursando - 1]),
+                 Math.max(1, Math.ceil(pre / MAX_T))]);
 
     if (!porInep[inep]) porInep[inep] = { pre: 0, cursos: {} };
     porInep[inep].pre += pre;
@@ -608,9 +872,11 @@ function lerOferta2027_(ss) {
     return esc[inep];
   }
 
-  function identifica(e, r) {
+  function identifica(e, r, C) {
     if (!e.escola) {
-      e.gre = texto_(r[0]); e.municipio = texto_(r[1]); e.escola = texto_(r[3]);
+      e.gre = texto_(r[C.gre - 1]);
+      e.municipio = texto_(r[C.municipio - 1]);
+      e.escola = texto_(r[C.escola - 1]);
     }
   }
 
@@ -618,11 +884,12 @@ function lerOferta2027_(ss) {
   var sh = ss.getSheetByName(ABA_OF1);
   if (sh) {
     var d = sh.getDataRange().getValues();
+    var C1 = colunasDe_(ss, ABA_OF1);
     for (var i = 1; i < d.length; i++) {
-      var k = inep_(d[i][2]); if (!k) continue;
-      var e = unidade(k); identifica(e, d[i]);
-      var t = numero_(d[i][4]), curso = texto_(d[i][5]);
-      e.of1Turmas += t; e.of1Alunos += numero_(d[i][6]);
+      var k = inep_(d[i][C1.inep - 1]); if (!k) continue;
+      var e = unidade(k); identifica(e, d[i], C1);
+      var t = numero_(d[i][C1.turmas - 1]), curso = texto_(d[i][C1.curso - 1]);
+      e.of1Turmas += t; e.of1Alunos += numero_(d[i][C1.alunos - 1]);
       e.of1Cursos[curso] = (e.of1Cursos[curso] || 0) + t;
     }
   }
@@ -631,14 +898,15 @@ function lerOferta2027_(ss) {
   sh = ss.getSheetByName(ABA_OFC);
   if (sh) {
     var d2 = sh.getDataRange().getValues();
+    var C2 = colunasDe_(ss, ABA_OFC);
     for (var j = 1; j < d2.length; j++) {
-      var k2 = inep_(d2[j][2]); if (!k2) continue;
-      var e2 = unidade(k2); identifica(e2, d2[j]);
-      var curso2 = texto_(d2[j][4]);
-      var etapa = texto_(d2[j][5]).toUpperCase();
+      var k2 = inep_(d2[j][C2.inep - 1]); if (!k2) continue;
+      var e2 = unidade(k2); identifica(e2, d2[j], C2);
+      var curso2 = texto_(d2[j][C2.curso - 1]);
+      var etapa = texto_(d2[j][C2.etapa - 1]).toUpperCase();
       var pre = etapa.indexOf("2") === 0 ? "co2" : "co3";
       e2[pre + "Turmas"] += 1;
-      e2[pre + "Alunos"] += numero_(d2[j][6]);
+      e2[pre + "Alunos"] += numero_(d2[j][C2.alunos - 1]);
       e2[pre + "Cursos"][curso2] = (e2[pre + "Cursos"][curso2] || 0) + 1;
     }
   }
@@ -647,11 +915,12 @@ function lerOferta2027_(ss) {
   sh = ss.getSheetByName(ABA_OFS);
   if (sh) {
     var d3 = sh.getDataRange().getValues();
+    var C3 = colunasDe_(ss, ABA_OFS);
     for (var m = 1; m < d3.length; m++) {
-      var k3 = inep_(d3[m][2]); if (!k3) continue;
-      var e3 = unidade(k3); identifica(e3, d3[m]);
-      var t3 = numero_(d3[m][4]), curso3 = texto_(d3[m][5]);
-      e3.subTurmas += t3; e3.subAlunos += numero_(d3[m][7]);
+      var k3 = inep_(d3[m][C3.inep - 1]); if (!k3) continue;
+      var e3 = unidade(k3); identifica(e3, d3[m], C3);
+      var t3 = numero_(d3[m][C3.turmas - 1]), curso3 = texto_(d3[m][C3.curso - 1]);
+      e3.subTurmas += t3; e3.subAlunos += numero_(d3[m][C3.alunos - 1]);
       e3.subCursos[curso3] = (e3.subCursos[curso3] || 0) + t3;
     }
   }
@@ -872,14 +1141,15 @@ function panorama_(ss, matrizes, ordemM) {
 
   if (sh) {
     var d = sh.getDataRange().getValues();
+    var P = colunasDe_(ss, ABA_PAN);
     for (var i = 1; i < d.length; i++) {
-      var nome = texto_(d[i][0]);
+      var nome = texto_(d[i][P.municipio - 1]);
       if (!nome) continue;
       var chave = semAcento_(nome).toUpperCase();
       vistos[chave] = true;
-      var todas = numero_(d[i][1]);
-      var ref   = numero_(d[i][2]);
-      var fonte = texto_(d[i][6]) || "CENSO";
+      var todas = numero_(d[i][P.todasRedes - 1]);
+      var ref   = numero_(d[i][P.refTurmas - 1]);
+      var fonte = texto_(d[i][P.fonte - 1]) || "CENSO";
       var est   = est9[chave] || { al: 0, tu: 0 };
       var outras  = Math.max(0, todas - est.al);
       var demanda = est.al + outras;
@@ -1027,7 +1297,7 @@ function gravarBaseAnexos_(ss, anexos, ordemA) {
   if (linhas.length) {
     listaSimples_(sh, 20, linhas.length, ["SIM", "NÃO", "EM ANÁLISE"]);
     listaSimples_(sh, 21, linhas.length, ["SIM", "NÃO", "EM ANÁLISE"]);
-    listaDaAba_(ss, sh, 22, linhas.length, ABA_VAL, 10);
+    listaDaAba_(ss, sh, 22, linhas.length, ABA_VAL, col_(ss, ABA_VAL, "destinoAnexo"));
   }
 }
 
@@ -1085,7 +1355,8 @@ function gravarUEJA_(ss, linhas) {
      "Nome do anexo / sala externa", "Turmas", "Matrículas",
      "Cursos ofertados neste local", "Fora do prédio matriz?", "★ Decisão 2027"],
     linhas, [100, 110, 160, 240, 200, 280, 80, 90, 420, 130, 240], [5, 6, 9, 11]);
-  if (linhas.length) listaDaAba_(ss, sh, 11, linhas.length, ABA_VAL, 10);
+  if (linhas.length) listaDaAba_(ss, sh, 11, linhas.length, ABA_VAL,
+                                 col_(ss, ABA_VAL, "destinoAnexo"));
 }
 
 
@@ -1138,21 +1409,36 @@ function gravarPanorama_(ss, pan) {
   var nV2 = ultimaLinha_(ss, ABA_V2);
   var nV3 = ultimaLinha_(ss, ABA_V3);
 
+  // colunas de origem e destino resolvidas pelo nome, não pela letra
+  var P  = colunasDe_(ss, ABA_PAN);
+  var C2 = colunasDe_(ss, ABA_V2);
+  var C3 = colunasDe_(ss, ABA_V3);
+
+  var lMun = letra_(P.municipio), lNec = letra_(P.necessarias);
+  var lDecV2 = letra_(P.decididaV2), lDecV3 = letra_(P.decididaV3);
+
+  function somaDecidida(aba, C, n) {
+    return "SUMIF('" + aba + "'!$" + letra_(C.municipio) + "$2:$" + letra_(C.municipio) +
+           "$" + n + ",$" + lMun + "R,'" + aba + "'!$" + letra_(C.s1_2027) + "$2:$" +
+           letra_(C.s1_2027) + "$" + n + ")";
+  }
+
   for (var i = 0; i < pan.length; i++) {
     var r = i + 2;
-    pan[i][9]  = "=IF($A" + r + '="","",SUMIF(\'' + ABA_V2 + "'!$C$2:$C$" + nV2 +
-                 ",$A" + r + ",'" + ABA_V2 + "'!$M$2:$M$" + nV2 + "))";
-    pan[i][10] = "=IF($A" + r + '="","",$H' + r + "-$J" + r + ")";
-    pan[i][11] = "=IF($A" + r + '="","",SUMIF(\'' + ABA_V3 + "'!$C$2:$C$" + nV3 +
-                 ",$A" + r + ",'" + ABA_V3 + "'!$O$2:$O$" + nV3 + "))";
-    pan[i][12] = "=IF($A" + r + '="","",$H' + r + "-$L" + r + ")";
-    pan[i][13] = "=IF($A" + r + '="","",IF($H' + r + '=0,"",$L' + r + "/$H" + r + "))";
+    var mun = "$" + lMun + r;
+    function aqui(f) { return f.replace(/R/g, r); }
+    pan[i][P.decididaV2 - 1] = "=IF(" + mun + '="","",' + aqui(somaDecidida(ABA_V2, C2, nV2)) + ")";
+    pan[i][P.saldoV2 - 1]    = "=IF(" + mun + '="","",$' + lNec + r + "-$" + lDecV2 + r + ")";
+    pan[i][P.decididaV3 - 1] = "=IF(" + mun + '="","",' + aqui(somaDecidida(ABA_V3, C3, nV3)) + ")";
+    pan[i][P.saldoV3 - 1]    = "=IF(" + mun + '="","",$' + lNec + r + "-$" + lDecV3 + r + ")";
+    pan[i][P.cobertura - 1]  = "=IF(" + mun + '="","",IF($' + lNec + r + '=0,"",$' +
+                               lDecV3 + r + "/$" + lNec + r + "))";
   }
 
   var sh = gravar_(ss, ABA_PAN, h, pan,
     [180, 140, 130, 140, 120, 140, 150, 150, 130, 130, 100, 130, 100, 100], []);
 
-  if (pan.length) sh.getRange(2, 14, pan.length, 1).setNumberFormat("0%");
+  if (pan.length) sh.getRange(2, P.cobertura, pan.length, 1).setNumberFormat("0%");
 }
 
 
@@ -1164,24 +1450,23 @@ function gravarIDEB_(ss, pan) {
 
   if (sh) {
     var d = sh.getDataRange().getValues();
+    var I = colunasDe_(ss, ABA_IDEB);
     for (var i = 1; i < d.length; i++) {
-      var m = semAcento_(d[i][0]).toUpperCase();
-      if (m) antigas[m] = [d[i][1], d[i][2], d[i][3], d[i][4], d[i][5]];
+      var m = semAcento_(d[i][I.municipio - 1]).toUpperCase();
+      if (m) antigas[m] = [d[i][I.ideb - 1], d[i][I.ano - 1], d[i][I.obs - 1]];
     }
   }
 
   var linhas = [];
   for (var k = 0; k < pan.length; k++) {
     var nome = pan[k][0];
-    var v = antigas[semAcento_(nome).toUpperCase()] || ["", "", "", "", ""];
-    linhas.push([nome, v[0], v[1], v[2], v[3], v[4]]);
+    var v = antigas[semAcento_(nome).toUpperCase()] || ["", "", ""];
+    linhas.push([nome, v[0], v[1], v[2]]);
   }
 
   gravar_(ss, ABA_IDEB,
-    ["Município", "IDEB Anos Finais (rede municipal)",
-     "IDEB Anos Finais (rede estadual)", "IDEB Ensino Médio",
-     "Ano de referência", "Observação"],
-    linhas, [180, 160, 160, 130, 110, 300], [6]);
+    ["Município", "IDEB Ensino Médio", "Ano de referência", "Observação"],
+    linhas, [180, 160, 110, 300], [4]);
 }
 
 
@@ -1197,6 +1482,7 @@ function gravarIDEB_(ss, pan) {
 function reescreverFormulas(silencioso) {
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
+  limparCacheColunas_();          // as abas podem ter mudado desde a última vez
 
   var nBT = ultimaLinha_(ss, ABA_BT);
   var nPM = ultimaLinha_(ss, ABA_PAN);
@@ -1222,63 +1508,72 @@ function formulasV2_(ss, nBT, nPM, nGD, nID, nFT) {
   if (n < 2) return;
   var qtd = n - 1;
 
-  semear_(sh, nBT, [[13, 20], [17, 31], [18, 33], [24, 28]]);
-  municipios_(sh, nGD, qtd);
+  var V = colunasDe_(ss, ABA_V2);
+  var A = "$" + letra_(V.inep) + "@";
+  var C = "$" + letra_(V.municipio) + "@";
+  function r(apelido) { return "$" + letra_(V[apelido]) + "@"; }
+
+  semear_(ss, sh, [["s1_2027", "of1Turmas"], ["s2_2027", "co2Turmas"],
+                   ["s3_2027", "co3Turmas"], ["salasDecide", "salasReal"]]);
+  municipios_(ss, sh, qtd);
 
   var cols = {};
-  cols[2]  = gd_("$A@", 3, nGD);
-  cols[4]  = gd_("$A@", 5, nGD);
-  cols[5]  = gd_("$A@", 14, nGD);
-  cols[6]  = gd_("$A@", 15, nGD);
-  cols[7]  = bt_("$A@", 9, nBT, '"—"');
-  cols[8]  = 'IF($C@="","",' + pm_("$C@", 7, nPM, '"—"') + '&" alunos · "&' +
-             pm_("$C@", 8, nPM, '"—"') + '&" turmas  (estadual nesta escola: "&' +
-             bt_("$A@", 18, nBT, "0") + '&")")';
-  cols[9]  = falta_("$C@", 11, nPM);
-  cols[11] = ideb_("$C@", 2, nID);
-  cols[14] = bt_("$A@", 3, nBT, '"—"');
-  cols[19] = bt_("$A@", 10, nBT, '"—"');
-  cols[21] = bt_("$A@", 11, nBT, '"—"');
-  cols[22] = "IFERROR(IF(COUNTIF('" + ABA_FT + "'!$J$2:$J$" + nFT + ",$A@)+COUNTIF('" +
-             ABA_FT + "'!$N$2:$N$" + nFT + ',$A@)=0,"Sem fusão turma a turma",' +
-             "COUNTIF('" + ABA_FT + "'!$J$2:$J$" + nFT + ',$A@)&" turma(s) saem · "&' +
-             "COUNTIF('" + ABA_FT + "'!$N$2:$N$" + nFT + ',$A@)&" turma(s) recebem"),"—")';
-  cols[23] = gd_("$A@", 6, nGD);
-  cols[25] = situacaoSala_("$W", "$X");
-  cols[26] = bt_("$A@", 7, nBT, '"—"');
-  cols[27] = bt_("$A@", 16, nBT, '"—"');
-  cols[30] = bt_("$A@", 26, nBT, '"—"');
-  cols[31] = bt_("$A@", 21, nBT, '"—"');
-  cols[33] = 'IF($A@="","",$M@&" de 1ª | "&$Q@&" de 2ª | "&$R@&" de 3ª | ' +
-             'Necessidade: "&$X@&" salas | "&$Y@)';
-  cols[34] = gd_("$A@", 18, nGD, '"—"');
-  cols[39] = bt_("$A@", 20, nBT, "0");
-  cols[40] = bt_("$A@", 31, nBT, "0");
-  cols[41] = bt_("$A@", 33, nBT, "0");
-  cols[42] = 'IF($A@="","",IF(AND($M@=' + bt_("$A@", 20, nBT, "0") + ',$Q@=' +
-             bt_("$A@", 31, nBT, "0") + ',$R@=' + bt_("$A@", 33, nBT, "0") +
-             '),"igual à oferta","decidido "&$M@&"/"&$Q@&"/"&$R@&" · oferta "&' +
-             bt_("$A@", 20, nBT, "0") + '&"/"&' + bt_("$A@", 31, nBT, "0") +
-             '&"/"&' + bt_("$A@", 33, nBT, "0") + '))';
+  cols[V.gre]        = gd_(ss, A, "gre", nGD);
+  cols[V.escola]     = gd_(ss, A, "escola", nGD);
+  cols[V.turmasHoje] = gd_(ss, A, "proj2026", nGD);
+  cols[V.turmas2027] = gd_(ss, A, "proj2027", nGD);
+  cols[V.ofertaFund] = bt_(ss, A, "ofertaFund", nBT, '"—"');
+  cols[V.ano9]       = 'IF(' + C + '="","",' + pm_(ss, C, "demanda", nPM, '"—"') +
+                       '&" alunos · "&' + pm_(ss, C, "necessarias", nPM, '"—"') +
+                       '&" turmas  (estadual nesta escola: "&' +
+                       bt_(ss, A, "ano9Matr", nBT, "0") + '&")")';
+  cols[V.faltam]     = falta_(ss, C, "saldoV2", nPM);
+  cols[V.ideb]       = ideb_(ss, C, "ideb", nID);
+  cols[V.cursos2026] = bt_(ss, A, "ofertaEM", nBT, '"—"');
+  cols[V.parciais]   = bt_(ss, A, "parciais", nBT, '"—"');
+  cols[V.fusoes]     = bt_(ss, A, "fusoes", nBT, '"—"');
+
+  var fJ = "'" + ABA_FT + "'!$J$2:$J$" + nFT;
+  var fN = "'" + ABA_FT + "'!$N$2:$N$" + nFT;
+  cols[V.validFusao] = "IFERROR(IF(COUNTIF(" + fJ + "," + A + ")+COUNTIF(" + fN + "," + A +
+                       ')=0,"Sem fusão turma a turma",COUNTIF(' + fJ + "," + A +
+                       ')&" turma(s) saem · "&COUNTIF(' + fN + "," + A +
+                       ')&" turma(s) recebem"),"—")';
+
+  cols[V.salasExist] = gd_(ss, A, "salas", nGD);
+  cols[V.situacao]   = situacaoSala_(r("salasExist"), r("salasDecide"));
+  cols[V.ofertaEJA]  = bt_(ss, A, "ofertaEJA", nBT, '"—"');
+  cols[V.matrEJA]    = bt_(ss, A, "matrTurmasEJA", nBT, '"—"');
+  cols[V.anexos]     = bt_(ss, A, "anexos", nBT, '"—"');
+  cols[V.cursos]     = bt_(ss, A, "of1Cursos", nBT, '"—"');
+  cols[V.resumo]     = 'IF(' + A + '="","",' + r("s1_2027") + '&" de 1ª | "&' +
+                       r("s2_2027") + '&" de 2ª | "&' + r("s3_2027") +
+                       '&" de 3ª | Necessidade: "&' + r("salasDecide") +
+                       '&" salas | "&' + r("situacao") + ')';
+  cols[V.escolaProxima] = gd_(ss, A, "escolaProxima", nGD, '"—"');
+  cols[V.of1] = bt_(ss, A, "of1Turmas", nBT, "0");
+  cols[V.of2] = bt_(ss, A, "co2Turmas", nBT, "0");
+  cols[V.of3] = bt_(ss, A, "co3Turmas", nBT, "0");
+  cols[V.divergencia] =
+    'IF(' + A + '="","",IF(AND(' + r("s1_2027") + '=' + bt_(ss, A, "of1Turmas", nBT, "0") +
+    ',' + r("s2_2027") + '=' + bt_(ss, A, "co2Turmas", nBT, "0") +
+    ',' + r("s3_2027") + '=' + bt_(ss, A, "co3Turmas", nBT, "0") +
+    '),"igual à oferta","decidido "&' + r("s1_2027") + '&"/"&' + r("s2_2027") +
+    '&"/"&' + r("s3_2027") + '&" · oferta "&' + bt_(ss, A, "of1Turmas", nBT, "0") +
+    '&"/"&' + bt_(ss, A, "co2Turmas", nBT, "0") + '&"/"&' +
+    bt_(ss, A, "co3Turmas", nBT, "0") + '))';
 
   aplicar_(sh, cols, qtd);
 
-  listaDaAba_(ss, sh, 10, qtd, ABA_VAL, 1);    // ★ Fundamental
-  listaDaAba_(ss, sh, 22, qtd, ABA_VAL, 8);    // ★ Validação da fusão
-  listaDaAba_(ss, sh, 35, qtd, ABA_VAL, 9);    // ★ Reordenamento
+  lista_(ss, sh, "estrelaFund", ABA_V2, "fundamental", qtd);
+  lista_(ss, sh, "validFusao",  ABA_V2, "validFusao",  qtd);
+  lista_(ss, sh, "reord",       ABA_V2, "reordenamento", qtd);
 }
 
 
 /**
- * V3 — 51 colunas. As colunas ★ NUNCA recebem fórmula: quem decide digita ou
- * escolhe no menu. As contas ficam em colunas próprias, ao lado, que leem a ★.
- *
- *   H  ★ FUNDAMENTAL          I  ★ TURMAS FUNDAMENTAL   J  total (calculado)
- *   Q  ★ 1ª SÉRIE             S  ★ CURSOS 1ª SÉRIE
- *   T  ★ TURMAS 1ª SÉRIE      U  total pelos cursos (calculado)
- *   W  ★ 2ª SÉRIE             X  ★ 3ª SÉRIE
- *   AH salas calculadas       AI ★ SALAS                AJ situação
- *   AN ★ EJA TURMAS           AQ ★ DECISÃO SOBRE O ANEXO
+ * V3 — as colunas ★ NUNCA recebem fórmula: quem decide digita ou escolhe no
+ * menu. As contas ficam em colunas próprias, ao lado, que leem a ★.
  */
 function formulasV3_(ss, nBT, nPM, nGD, nID, nFE) {
 
@@ -1289,109 +1584,133 @@ function formulasV3_(ss, nBT, nPM, nGD, nID, nFE) {
   if (n < 2) return;
   var qtd = n - 1;
 
-  semear_(sh, nBT, [[17, 20], [23, 31], [24, 33], [35, 28], [40, 42]]);
-  municipios_(sh, nGD, qtd);
+  var V = colunasDe_(ss, ABA_V3);
+  var A = "$" + letra_(V.inep) + "@";
+  var C = "$" + letra_(V.municipio) + "@";
+  function r(apelido) { return "$" + letra_(V[apelido]) + "@"; }
 
-  // total de turmas a partir de "Curso (2), Outro (1)" — soma o que está
-  // entre parênteses. Fica numa coluna só dela, nunca dentro da ★.
+  semear_(ss, sh, [["s1_2027", "of1Turmas"], ["s2_2027", "co2Turmas"],
+                   ["s3_2027", "co3Turmas"], ["salasDecide", "salasReal"],
+                   ["ejaTurmas", "ejaMatrizTurmas"]]);
+  municipios_(ss, sh, qtd);
+
+  // soma o que estiver entre parênteses em "Curso (2), Outro (1)"
   function somaParenteses(ref) {
     return 'IFERROR(SUM(ARRAYFORMULA(IFERROR(VALUE(REGEXEXTRACT(' +
            'SPLIT(' + ref + ',","),"\\((\\d+)\\)")),0))),0)';
   }
-  var turmas1a = "IF($U@>0,$U@,$Q@)";     // curso a curso quando houver; senão o total
+  // curso a curso quando houver; senão, o total digitado
+  var turmas1a = "(IF(" + r("cursosTotal") + ">0," + r("cursosTotal") + "," + r("s1_2027") + "))";
 
   var cols = {};
-  cols[2]  = gd_("$A@", 3, nGD);
-  cols[4]  = gd_("$A@", 5, nGD);
-  cols[5]  = gd_("$A@", 14, nGD);
-  cols[6]  = gd_("$A@", 15, nGD);
-  cols[7]  = bt_("$A@", 9, nBT, '"—"');
-  cols[10] = somaParenteses("$I@");                          // Fundamental 2027 total
-  cols[11] = 'IF($A@="","",' + bt_("$A@", 18, nBT, "0") + '&" matrícula(s) · "&' +
-             bt_("$A@", 17, nBT, "0") + '&" turma(s)")';
-  cols[12] = 'IF($C@="","",' + pm_("$C@", 2, nPM, "0") + '&" alunos (estadual "&' +
-             pm_("$C@", 4, nPM, "0") + '&" + outras redes "&' + pm_("$C@", 6, nPM, "0") + '&")")';
-  cols[13] = 'IF($C@="","",' + pm_("$C@", 7, nPM, "0") + '&" alunos → "&' +
-             pm_("$C@", 8, nPM, "0") + '&" turma(s) necessária(s)")';
-  cols[14] = falta_("$C@", 13, nPM);
-  cols[15] = "IFERROR(VLOOKUP($A@,'IDEB - ESCOLAS'!C:F,4,0),\"\")";
-  cols[18] = bt_("$A@", 3, nBT, '"—"');
-  cols[21] = somaParenteses("$T@");                          // 1ª série total pelos cursos
-  cols[25] = bt_("$A@", 20, nBT, "0");
-  cols[26] = bt_("$A@", 21, nBT, '"—"');
-  cols[27] = 'IF($A@="","",' + bt_("$A@", 31, nBT, "0") + '&" de 2ª | "&' +
-             bt_("$A@", 33, nBT, "0") + '&" de 3ª | "&' + bt_("$A@", 35, nBT, "0") + '&" subseq.")';
-  cols[28] = bt_("$A@", 10, nBT, '"—"');
-  cols[30] = bt_("$A@", 11, nBT, '"—"');
-  cols[31] = bt_("$A@", 25, nBT, '"—"');
-  cols[33] = gd_("$A@", 6, nGD);
+  cols[V.gre]        = gd_(ss, A, "gre", nGD);
+  cols[V.escola]     = gd_(ss, A, "escola", nGD);
+  cols[V.turmasHoje] = gd_(ss, A, "proj2026", nGD);
+  cols[V.turmas2027] = gd_(ss, A, "proj2027", nGD);
+  cols[V.ofertaFund] = bt_(ss, A, "ofertaFund", nBT, '"—"');
+  cols[V.fundTotal]  = somaParenteses(r("fundTurmas"));
+  cols[V.ano9Escola] = 'IF(' + A + '="","",' + bt_(ss, A, "ano9Matr", nBT, "0") +
+                       '&" matrícula(s) · "&' + bt_(ss, A, "ano9Turmas", nBT, "0") +
+                       '&" turma(s)")';
+  cols[V.ano9Municipio] = 'IF(' + C + '="","",' + pm_(ss, C, "todasRedes", nPM, "0") +
+                       '&" alunos (estadual "&' + pm_(ss, C, "est9Alunos", nPM, "0") +
+                       '&" + outras redes "&' + pm_(ss, C, "outrasRedes", nPM, "0") + '&")")';
+  cols[V.demanda]    = 'IF(' + C + '="","",' + pm_(ss, C, "demanda", nPM, "0") +
+                       '&" alunos → "&' + pm_(ss, C, "necessarias", nPM, "0") +
+                       '&" turma(s) necessária(s)")';
+  cols[V.faltam]     = falta_(ss, C, "saldoV3", nPM);
+  cols[V.ideb]       = "IFERROR(VLOOKUP(" + A + ",'IDEB - ESCOLAS'!C:F,4,0),\"\")";
+  cols[V.cursos2026] = bt_(ss, A, "ofertaEM", nBT, '"—"');
+  cols[V.cursosTotal] = somaParenteses(r("cursosTurmas"));
+  cols[V.of1]        = bt_(ss, A, "of1Turmas", nBT, "0");
+  cols[V.ofCursos]   = bt_(ss, A, "of1Cursos", nBT, '"—"');
+  cols[V.of23sub]    = 'IF(' + A + '="","",' + bt_(ss, A, "co2Turmas", nBT, "0") +
+                       '&" de 2ª | "&' + bt_(ss, A, "co3Turmas", nBT, "0") +
+                       '&" de 3ª | "&' + bt_(ss, A, "subTurmas", nBT, "0") + '&" subseq.")';
+  cols[V.parciais]     = bt_(ss, A, "parciais", nBT, '"—"');
+  cols[V.fusaoPropria] = bt_(ss, A, "fusoes", nBT, '"—"');
+  cols[V.fusaoEntre]   = bt_(ss, A, "fusaoEntre", nBT, '"—"');
+  cols[V.salasExist]   = gd_(ss, A, "salas", nGD);
 
-  // salas: a base do motor, movida por tudo que for decidido nas ★
-  cols[34] = 'IF($A@="","",MAX(0,' + bt_("$A@", 28, nBT, "0") +
-             "+((" + turmas1a + ")-" + bt_("$A@", 20, nBT, "0") + ")" +
-             "+($W@-" + bt_("$A@", 31, nBT, "0") + ")" +
-             "+($X@-" + bt_("$A@", 33, nBT, "0") + ")" +
-             "+($J@-" + bt_("$A@", 40, nBT, "0") + ")" +
-             "+IF(" + bt_("$A@", 41, nBT, '"NÃO"') + '="SIM",$AN@-' +
-             bt_("$A@", 42, nBT, "0") + ",0)))";
-  cols[36] = 'IF($AI@="","",IF($AG@>$AI@,($AG@-$AI@)&" SALA(S) OCIOSA(S)",' +
-             'IF($AG@<$AI@,"CONSTRUIR "&($AI@-$AG@)&" SALA(S)","QUANTIDADE ADEQUADA")))';
-  cols[37] = bt_("$A@", 7, nBT, '"—"');
-  cols[38] = bt_("$A@", 16, nBT, '"—"');
-  cols[39] = bt_("$A@", 22, nBT, '"—"');
-  cols[41] = bt_("$A@", 26, nBT, '"—"');
-  cols[42] = bt_("$A@", 27, nBT, "0");
-  cols[44] = 'IF($A@="","",(' + turmas1a + ')&" de 1ª | "&$W@&" de 2ª | "&$X@&" de 3ª | Fund "&' +
-             '$J@&" | EJA "&$AN@&" | Necessidade: "&$AI@&" salas | "&$AJ@)';
-  cols[45] = gd_("$A@", 18, nGD, '"—"');
-  cols[50] = 'IF($A@="","",' + bt_("$A@", 32, nBT, "0") + "+" + bt_("$A@", 34, nBT, "0") +
-             '&" aluno(s)")';
-  cols[51] = 'IF($A@="","",IF(AND((' + turmas1a + ')=' + bt_("$A@", 20, nBT, "0") +
-             ',$W@=' + bt_("$A@", 31, nBT, "0") + ',$X@=' + bt_("$A@", 33, nBT, "0") +
-             '),"igual à oferta","decidido "&(' + turmas1a + ')&"/"&$W@&"/"&$X@&" · oferta "&' +
-             bt_("$A@", 20, nBT, "0") + '&"/"&' + bt_("$A@", 31, nBT, "0") + '&"/"&' +
-             bt_("$A@", 33, nBT, "0") + '))';
+  // a base do motor, movida por tudo que for decidido nas ★
+  cols[V.salasCalc] = 'IF(' + A + '="","",MAX(0,' + bt_(ss, A, "salasReal", nBT, "0") +
+    "+(" + turmas1a + "-" + bt_(ss, A, "of1Turmas", nBT, "0") + ")" +
+    "+(" + r("s2_2027") + "-" + bt_(ss, A, "co2Turmas", nBT, "0") + ")" +
+    "+(" + r("s3_2027") + "-" + bt_(ss, A, "co3Turmas", nBT, "0") + ")" +
+    "+(" + r("fundTotal") + "-" + bt_(ss, A, "fund2026", nBT, "0") + ")" +
+    "+IF(" + bt_(ss, A, "soEJA", nBT, '"NÃO"') + '="SIM",' + r("ejaTurmas") + "-" +
+    bt_(ss, A, "ejaMatrizTurmas", nBT, "0") + ",0)))";
+
+  cols[V.salasSituacao] = situacaoSala_(r("salasExist"), r("salasDecide"));
+  cols[V.ejaOferta]     = bt_(ss, A, "ofertaEJA", nBT, '"—"');
+  cols[V.ejaMatriculas] = bt_(ss, A, "matrTurmasEJA", nBT, '"—"');
+  cols[V.ejaFora]       = bt_(ss, A, "ejaFora", nBT, '"—"');
+  cols[V.anexosLista]   = bt_(ss, A, "anexos", nBT, '"—"');
+  cols[V.anexosQtd]     = bt_(ss, A, "qtdAnexos", nBT, "0");
+  cols[V.resumo] = 'IF(' + A + '="","",' + turmas1a + '&" de 1ª | "&' + r("s2_2027") +
+    '&" de 2ª | "&' + r("s3_2027") + '&" de 3ª | Fund "&' + r("fundTotal") +
+    '&" | EJA "&' + r("ejaTurmas") + '&" | Necessidade: "&' + r("salasDecide") +
+    '&" salas | "&' + r("salasSituacao") + ')';
+  cols[V.escolaProxima] = gd_(ss, A, "escolaProxima", nGD, '"—"');
+  cols[V.ofAlunos23] = 'IF(' + A + '="","",' + bt_(ss, A, "co2Alunos", nBT, "0") + "+" +
+                       bt_(ss, A, "co3Alunos", nBT, "0") + '&" aluno(s)")';
+  cols[V.divergencia] =
+    'IF(' + A + '="","",IF(AND(' + turmas1a + '=' + bt_(ss, A, "of1Turmas", nBT, "0") +
+    ',' + r("s2_2027") + '=' + bt_(ss, A, "co2Turmas", nBT, "0") +
+    ',' + r("s3_2027") + '=' + bt_(ss, A, "co3Turmas", nBT, "0") +
+    '),"igual à oferta","decidido "&' + turmas1a + '&"/"&' + r("s2_2027") +
+    '&"/"&' + r("s3_2027") + '&" · oferta "&' + bt_(ss, A, "of1Turmas", nBT, "0") +
+    '&"/"&' + bt_(ss, A, "co2Turmas", nBT, "0") + '&"/"&' +
+    bt_(ss, A, "co3Turmas", nBT, "0") + '))';
 
   aplicar_(sh, cols, qtd);
 
-  var nV = ultimaLinha_(ss, ABA_VAL);
-  listaDaAba_(ss, sh, 8,  qtd, ABA_VAL, 1);    // ★ Fundamental — quais etapas
-  listaDaAba_(ss, sh, 9,  qtd, ABA_VAL, 12);   // ★ Turmas de Fundamental — etapa (n)
-  listaDaAba_(ss, sh, 19, qtd, ABA_VAL, 11);   // ★ Cursos da 1ª série
-  listaDaAba_(ss, sh, 20, qtd, ABA_VAL, 11);   // ★ Turmas por curso — curso (n)
-  listaDaAba_(ss, sh, 32, qtd, ABA_VAL, 8);    // ★ Validação da fusão
-  listaDaAba_(ss, sh, 43, qtd, ABA_VAL, 13);   // ★ Decisão sobre o anexo
-  listaDaAba_(ss, sh, 46, qtd, ABA_VAL, 9);    // ★ Reordenamento
+  lista_(ss, sh, "fundEtapas",    ABA_V3, "fundamental",   qtd);
+  lista_(ss, sh, "fundTurmas",    ABA_V3, "fundQtd",       qtd);
+  lista_(ss, sh, "cursos2027",    ABA_V3, "cursosQtd",     qtd);
+  lista_(ss, sh, "cursosTurmas",  ABA_V3, "cursosQtd",     qtd);
+  lista_(ss, sh, "fusaoValid",    ABA_V3, "validFusao",    qtd);
+  lista_(ss, sh, "anexosDecisao", ABA_V3, "decisaoAnexo",  qtd);
+  lista_(ss, sh, "reord",         ABA_V3, "reordenamento", qtd);
 }
 
 
-// ─────────────────────────────────────────── montadores de fórmula
+/*
+ * Os montadores abaixo recebem o APELIDO da coluna, não o índice. O índice do
+ * PROCV sai do nome escrito na linha 1 da aba de origem — todos os intervalos
+ * começam em A, então o índice é o próprio número da coluna. A largura do
+ * intervalo também acompanha a aba, em vez de ficar presa a uma letra.
+ */
 
-function bt_(chave, col, n, err) {
-  return "IFERROR(VLOOKUP(" + chave + ",'" + ABA_BT + "'!$A$2:$AR$" + n + "," +
-         col + ",FALSE)," + (err || '""') + ")";
+function faixa_(ss, aba, n) {
+  var sh = ss.getSheetByName(aba);
+  var larg = sh ? Math.max(1, sh.getLastColumn()) : 1;
+  return "'" + aba + "'!$A$2:$" + letra_(larg) + "$" + n;
 }
-function pm_(chave, col, n, err) {
-  return "IFERROR(VLOOKUP(" + chave + ",'" + ABA_PAN + "'!$A$2:$N$" + n + "," +
-         col + ",FALSE)," + (err || '""') + ")";
+
+function proc_(ss, aba, chave, apelido, n, err) {
+  return "IFERROR(VLOOKUP(" + chave + "," + faixa_(ss, aba, n) + "," +
+         col_(ss, aba, apelido) + ",FALSE)," + (err || '""') + ")";
 }
-function gd_(chave, col, n, err) {
-  return "IFERROR(VLOOKUP(" + chave + ",'" + ABA_GDI + "'!$A$2:$AL$" + n + "," +
-         col + ",FALSE)," + (err || '""') + ")";
-}
-function ideb_(chave, col, n) {
-  var v = "VLOOKUP(" + chave + ",'" + ABA_IDEB + "'!$A$2:$F$" + n + "," + col + ",FALSE)";
+
+function bt_(ss, chave, apelido, n, err) { return proc_(ss, ABA_BT,  chave, apelido, n, err); }
+function pm_(ss, chave, apelido, n, err) { return proc_(ss, ABA_PAN, chave, apelido, n, err); }
+function gd_(ss, chave, apelido, n, err) { return proc_(ss, ABA_GDI, chave, apelido, n, err); }
+
+function ideb_(ss, chave, apelido, n) {
+  var v = "VLOOKUP(" + chave + "," + faixa_(ss, ABA_IDEB, n) + "," +
+          col_(ss, ABA_IDEB, apelido) + ",FALSE)";
   return 'IFERROR(IF(N(' + v + ')=0,"— sem IDEB cadastrado",' + v +
          '),"— sem IDEB cadastrado")';
 }
-function falta_(chave, colSaldo, n) {
-  var v = pm_(chave, colSaldo, n, '""');
+function falta_(ss, chave, apelidoSaldo, n) {
+  var v = pm_(ss, chave, apelidoSaldo, n, '""');
   return 'IF(' + chave + '="","",IF(' + v + '="","—",IF(' + v + '>0,' +
          '"FALTAM DISTRIBUIR "&' + v + '&" TURMA(S)",IF(' + v + '=0,' +
          '"DEMANDA MUNICIPAL ATENDIDA","EXCEDE A DEMANDA EM "&ABS(' + v + ')&" TURMA(S)"))))';
 }
-function situacaoSala_(colExiste, colNec) {
-  var e = colExiste + "@", x = colNec + "@";
+function situacaoSala_(refExiste, refNec) {
+  var e = refExiste, x = refNec;
   return 'IF(' + x + '="","",IF(' + e + '>' + x + ',(' + e + '-' + x +
          ')&" SALA(S) OCIOSA(S)",IF(' + e + '<' + x + ',"CONSTRUIR "&(' + x + '-' + e +
          ')&" SALA(S)","QUANTIDADE ADEQUADA")))';
@@ -1411,15 +1730,32 @@ function aplicar_(sh, cols, qtd) {
 
 
 /** Município sem acento — é a chave que casa com Panorama e IDEB. */
-function municipios_(sh, nGD, qtd) {
-  var ineps = sh.getRange(2, 1, qtd, 1).getValues();
-  var gdi = mapaGDI_(SpreadsheetApp.getActiveSpreadsheet());
+function municipios_(ss, sh, qtd) {
+  var V = colunasDe_(ss, sh.getName());
+  var ineps = sh.getRange(2, V.inep, qtd, 1).getValues();
+  var gdi = mapaGDI_(ss);
   var out = [];
   for (var i = 0; i < qtd; i++) {
     var k = inep_(ineps[i][0]);
     out.push([k && gdi[k] ? semAcento_(gdi[k].municipio) : ""]);
   }
-  sh.getRange(2, 3, qtd, 1).setValues(out);
+  sh.getRange(2, V.municipio, qtd, 1).setValues(out);
+}
+
+
+/** Liga um menu suspenso: coluna de destino e lista de origem, ambas por nome. */
+function lista_(ss, sh, apelidoDest, abaDest, apelidoLista, qtd) {
+  if (qtd < 1) return;
+  var origem = ss.getSheetByName(ABA_VAL);
+  if (!origem) return;
+  var n = origem.getLastRow();
+  if (n < 2) return;
+  var colLista = col_(ss, ABA_VAL, apelidoLista);
+  var colDest = col_(ss, abaDest, apelidoDest);
+  var regra = SpreadsheetApp.newDataValidation()
+    .requireValueInRange(origem.getRange(2, colLista, n - 1, 1), true)
+    .setAllowInvalid(true).build();
+  sh.getRange(2, colDest, qtd, 1).setDataValidation(regra);
 }
 
 
@@ -1436,31 +1772,37 @@ function municipios_(sh, nGD, qtd) {
  */
 var ABA_SEMENTES = "★ Sementes (controle)";
 
-function semear_(sh, nBT, pares) {
+function semear_(ss, sh, pares) {
 
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
   var bt = ss.getSheetByName(ABA_BT);
   if (!bt) return;
 
   var d = bt.getDataRange().getValues();
+  var B = colunasDe_(ss, ABA_BT);
   var mapa = {};
   for (var i = 1; i < d.length; i++) {
-    var k = inep_(d[i][0]);
+    var k = inep_(d[i][B.inep - 1]);
     if (k) mapa[k] = d[i];
   }
+
+  var aba = sh.getName();
+  var V = colunasDe_(ss, aba);
 
   var n = sh.getLastRow();
   if (n < 2) return;
   var qtd = n - 1;
-  var ineps = sh.getRange(2, 1, qtd, 1).getValues();
+  var ineps = sh.getRange(2, V.inep, qtd, 1).getValues();
 
-  var anterior = lerSementes_(ss, sh.getName());
+  var anterior = lerSementes_(ss, aba);
   var agora = {};
 
   for (var p = 0; p < pares.length; p++) {
 
-    var colDest = pares[p][0], colOrig = pares[p][1];
-    var chaveCol = String(colDest);
+    var apelidoDest = pares[p][0], apelidoOrig = pares[p][1];
+    var colDest = V[apelidoDest];
+    var colOrig = B[apelidoOrig];
+    if (!colDest || !colOrig) continue;
+
     var atual = sh.getRange(2, colDest, qtd, 1).getValues();
     var mudou = false;
 
@@ -1471,11 +1813,11 @@ function semear_(sh, nBT, pares) {
 
       var semente = mapa[k2][colOrig - 1];
       if (!agora[k2]) agora[k2] = {};
-      agora[k2][chaveCol] = semente;
+      agora[k2][apelidoDest] = semente;
 
       var v = atual[r][0];
       var vazio = (v === "" || v === null || v === undefined);
-      var ant = (anterior[k2] || {})[chaveCol];
+      var ant = (anterior[k2] || {})[apelidoDest];
       var aindaSemente = !vazio && ant !== undefined && ant !== null &&
                          String(ant) !== "" && Number(v) === Number(ant);
 
@@ -1489,7 +1831,7 @@ function semear_(sh, nBT, pares) {
     if (mudou) sh.getRange(2, colDest, qtd, 1).setValues(atual);
   }
 
-  gravarSementes_(ss, sh.getName(), ineps, pares, agora);
+  gravarSementes_(ss, aba, ineps, pares, agora);
 }
 
 
@@ -1501,9 +1843,9 @@ function lerSementes_(ss, aba) {
   if (n < 2) return out;
   var d = sh.getRange(1, 1, n, sh.getLastColumn()).getValues();
   var cols = {};
-  for (var c = 2; c < d[0].length; c++) {
+  for (var c = 1; c < d[0].length; c++) {
     var t = String(d[0][c] || "");
-    if (t.indexOf(aba + "|") === 0) cols[t.split("|")[1]] = c;
+    if (t.indexOf(aba + "|") === 0) cols[t.substring(aba.length + 1)] = c;
   }
   for (var i = 1; i < d.length; i++) {
     var k = inep_(d[i][0]);
@@ -1562,7 +1904,7 @@ function gravarSementes_(ss, aba, ineps, pares, agora) {
     var vals = agora[k2] || {};
     for (var p2 = 0; p2 < pares.length; p2++) {
       var t2 = aba + "|" + pares[p2][0];
-      var v2 = vals[String(pares[p2][0])];
+      var v2 = vals[pares[p2][0]];
       d[linhaDe[k2]][colDe[t2]] = (v2 === undefined ? "" : v2);
     }
   }
@@ -1741,11 +2083,23 @@ function listaSimples_(sh, col, qtd, itens) {
  * caixinhas do Google não permite.
  */
 
+// Quais colunas acumulam, por aba — por apelido, resolvido na hora do clique.
 var COL_CURSOS = { };
-COL_CURSOS[ABA_V1] = [15];             // ★ CURSOS 1ª SÉRIE 2027
-COL_CURSOS[ABA_V2] = [15];
-COL_CURSOS[ABA_V3] = [9, 19, 20];      // ★ turmas fundamental · cursos · turmas por curso
+COL_CURSOS[ABA_V2] = ["cursos2027"];
+COL_CURSOS[ABA_V3] = ["fundTurmas", "cursos2027", "cursosTurmas"];
 var SEPARADOR = ", ";
+
+
+/** Números das colunas que acumulam nesta aba. */
+function colunasAcumulativas_(ss, aba) {
+  var apelidos = COL_CURSOS[aba];
+  if (!apelidos) return null;
+  var V = colunasDe_(ss, aba);
+  var out = [];
+  for (var i = 0; i < apelidos.length; i++)
+    if (V[apelidos[i]]) out.push(V[apelidos[i]]);
+  return out;
+}
 
 function onEdit(e) {
 
@@ -1754,9 +2108,9 @@ function onEdit(e) {
   var cel = e.range;
   var aba = cel.getSheet().getName();
 
-  var cols = COL_CURSOS[aba];
-  if (!cols) return;
-  if (cols.indexOf(cel.getColumn()) === -1) return;
+  if (!COL_CURSOS[aba]) return;
+  var cols = colunasAcumulativas_(cel.getSheet().getParent(), aba);
+  if (!cols || cols.indexOf(cel.getColumn()) === -1) return;
   if (cel.getRow() < 2) return;
   if (cel.getNumRows() !== 1 || cel.getNumColumns() !== 1) return;
 
@@ -1776,7 +2130,8 @@ function desfazerUltimoCurso() {
 
   var cel = SpreadsheetApp.getActiveRange();
   var aba = cel.getSheet().getName();
-  var cols = COL_CURSOS[aba];
+  var cols = COL_CURSOS[aba] ?
+             colunasAcumulativas_(SpreadsheetApp.getActiveSpreadsheet(), aba) : null;
 
   if (!cols || cols.indexOf(cel.getColumn()) === -1) {
     SpreadsheetApp.getUi().alert(
