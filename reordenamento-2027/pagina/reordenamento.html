@@ -1,0 +1,569 @@
+<title>Reordenamento 2027</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+:root{
+  --papel:#FBFAF7; --papel-2:#F3F1EC; --papel-3:#E8E5DE;
+  --tinta:#1F2733; --tinta-2:#4A5361; --tinta-3:#767E8B;
+  --linha:#DCD8D0; --linha-forte:#C3BEB4;
+
+  --id:#374151; --hoje:#1E40AF; --fund:#0891B2; --medio:#047857;
+  --uetep:#0F766E; --fusao:#6D28D9; --sala:#B45309; --eja:#92400E; --anexo:#7E22CE;
+
+  --estrela-tinta:#8A4B08; --estrela-fundo:#FDF6D8; --estrela-borda:#EBD9A0;
+  --ok:#15803D; --alerta:#B91C1C;
+
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --sans:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --papel:#14181E; --papel-2:#1B2027; --papel-3:#242A33;
+    --tinta:#E8E6E1; --tinta-2:#B3B8C0; --tinta-3:#868D97;
+    --linha:#2C333C; --linha-forte:#3D4550;
+    --id:#9BA6B5; --hoje:#7DA2F5; --fund:#4CC5DE; --medio:#42C08C;
+    --uetep:#48BFB0; --fusao:#AE8DF0; --sala:#E0A75C; --eja:#D9A05B; --anexo:#C89BF0;
+    --estrela-tinta:#F0CE7A; --estrela-fundo:#2A2418; --estrela-borda:#4A3F22;
+    --ok:#4ADE80; --alerta:#F87171;
+  }
+}
+:root[data-theme="dark"]{
+  --papel:#14181E; --papel-2:#1B2027; --papel-3:#242A33;
+  --tinta:#E8E6E1; --tinta-2:#B3B8C0; --tinta-3:#868D97;
+  --linha:#2C333C; --linha-forte:#3D4550;
+  --id:#9BA6B5; --hoje:#7DA2F5; --fund:#4CC5DE; --medio:#42C08C;
+  --uetep:#48BFB0; --fusao:#AE8DF0; --sala:#E0A75C; --eja:#D9A05B; --anexo:#C89BF0;
+  --estrela-tinta:#F0CE7A; --estrela-fundo:#2A2418; --estrela-borda:#4A3F22;
+  --ok:#4ADE80; --alerta:#F87171;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--papel); color:var(--tinta);
+  font-family:var(--serif); font-size:17px; line-height:1.62;
+  margin:0; padding:0 24px 96px;
+  -webkit-font-smoothing:antialiased;
+}
+.faixa{max-width:1180px;margin:0 auto}
+.leitura{max-width:66ch}
+h1,h2,h3,.rot{font-family:var(--sans);text-wrap:balance}
+p{margin:0 0 1.05em}
+strong{font-weight:600}
+a{color:inherit}
+code,.mono{font-family:var(--mono);font-size:.88em;font-variant-numeric:tabular-nums}
+
+/* ───────── cabeçalho ───────── */
+header{padding:64px 0 40px;border-bottom:2px solid var(--tinta);margin-bottom:44px}
+.orgao{font-family:var(--sans);font-size:11.5px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--tinta-3);margin:0 0 18px}
+h1{font-size:clamp(38px,6.2vw,62px);font-weight:700;line-height:1.02;
+  letter-spacing:-.022em;margin:0 0 20px}
+.linha-fina{font-family:var(--serif);font-size:20px;line-height:1.5;color:var(--tinta-2);
+  max-width:56ch;margin:0}
+
+.numeros{display:flex;flex-wrap:wrap;gap:0;margin-top:40px;
+  border-top:1px solid var(--linha)}
+.num{flex:1 1 128px;padding:16px 20px 16px 0;border-right:1px solid var(--linha)}
+.num:last-child{border-right:0}
+.num b{display:block;font-family:var(--sans);font-size:27px;font-weight:700;
+  letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.15}
+.num span{font-family:var(--sans);font-size:11.5px;font-weight:500;color:var(--tinta-3);
+  letter-spacing:.03em;display:block;margin-top:3px}
+
+/* ───────── seções ───────── */
+section{margin:0 0 60px}
+h2{font-size:12px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--tinta-3);margin:0 0 6px}
+h2 + .titulo{font-family:var(--sans);font-size:29px;font-weight:600;letter-spacing:-.018em;
+  margin:0 0 22px;line-height:1.2}
+h3{font-family:var(--sans);font-size:17px;font-weight:600;margin:34px 0 10px;
+  letter-spacing:-.005em}
+
+/* ───────── convenção ★ ───────── */
+.convencao{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));
+  gap:0;border:1px solid var(--linha);border-radius:3px;overflow:hidden;margin:26px 0 8px}
+.convencao > div{padding:20px 22px}
+.convencao > div + div{border-left:1px solid var(--linha)}
+.conv-estrela{background:var(--estrela-fundo)}
+.conv-titulo{font-family:var(--mono);font-size:14px;font-weight:500;margin:0 0 8px;
+  display:flex;align-items:center;gap:8px}
+.conv-estrela .conv-titulo{color:var(--estrela-tinta)}
+.convencao p{font-size:15px;line-height:1.5;margin:0;color:var(--tinta-2)}
+
+/* ───────── fluxo ───────── */
+.fluxo{display:grid;gap:14px;margin:26px 0;
+  grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.etapa{border-left:3px solid var(--linha-forte);padding:2px 0 2px 15px}
+.etapa .rot{font-size:10.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--tinta-3);display:block;margin-bottom:8px}
+.etapa ul{margin:0;padding:0;list-style:none;font-family:var(--mono);font-size:13px;
+  line-height:1.85;color:var(--tinta-2)}
+.e1{border-left-color:var(--id)} .e2{border-left-color:var(--uetep)}
+.e3{border-left-color:var(--medio)} .e4{border-left-color:var(--sala)}
+
+/* ───────── tabelas ───────── */
+.rolar{overflow-x:auto;margin:22px 0;border-top:1px solid var(--linha);
+  border-bottom:1px solid var(--linha)}
+table{border-collapse:collapse;width:100%;font-size:15px;min-width:560px}
+th{font-family:var(--sans);font-size:10.5px;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--tinta-3);text-align:left;
+  padding:11px 14px 11px 0;border-bottom:1px solid var(--linha-forte);white-space:nowrap}
+td{padding:9px 14px 9px 0;border-bottom:1px solid var(--linha);vertical-align:top;
+  line-height:1.45}
+tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);
+  font-size:13.5px;padding-right:22px}
+td.col{font-family:var(--mono);font-size:13.5px;color:var(--tinta-3);width:52px;
+  white-space:nowrap}
+.nota{font-size:14px;color:var(--tinta-3);line-height:1.5}
+
+/* ───────── mapa de colunas ───────── */
+.bloco{margin:0 0 4px;border-left:3px solid var(--linha-forte);padding-left:16px}
+.bloco-cab{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:24px 0 8px}
+.bloco-nome{font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase}
+.bloco-desc{font-size:14.5px;color:var(--tinta-3)}
+.cols{display:grid;gap:2px 26px;margin:0 0 8px;
+  grid-template-columns:repeat(3,minmax(0,1fr))}
+.cols[data-n="2"]{grid-template-columns:repeat(2,minmax(0,1fr));max-width:840px}
+@media (max-width:900px){
+  .faixa .cols,.faixa .cols[data-n="2"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:600px){
+  .faixa .cols,.faixa .cols[data-n="2"]{grid-template-columns:1fr}
+}
+.linha-col{display:flex;gap:11px;align-items:baseline;padding:4px 0;
+  border-bottom:1px solid var(--linha);font-size:15px}
+.linha-col .letra{font-family:var(--mono);font-size:12.5px;color:var(--tinta-3);
+  min-width:26px;text-align:right;flex-shrink:0}
+.linha-col .nome{flex:1}
+.linha-col.estrela .nome{color:var(--estrela-tinta);font-weight:600}
+.b-id{border-left-color:var(--id)} .b-id .bloco-nome{color:var(--id)}
+.b-hoje{border-left-color:var(--hoje)} .b-hoje .bloco-nome{color:var(--hoje)}
+.b-fund{border-left-color:var(--fund)} .b-fund .bloco-nome{color:var(--fund)}
+.b-medio{border-left-color:var(--medio)} .b-medio .bloco-nome{color:var(--medio)}
+.b-uetep{border-left-color:var(--uetep)} .b-uetep .bloco-nome{color:var(--uetep)}
+.b-fusao{border-left-color:var(--fusao)} .b-fusao .bloco-nome{color:var(--fusao)}
+.b-sala{border-left-color:var(--sala)} .b-sala .bloco-nome{color:var(--sala)}
+.b-eja{border-left-color:var(--eja)} .b-eja .bloco-nome{color:var(--eja)}
+.b-anexo{border-left-color:var(--anexo)} .b-anexo .bloco-nome{color:var(--anexo)}
+
+/* ───────── regra / fórmula ───────── */
+.regra{background:var(--papel-2);border:1px solid var(--linha);border-radius:3px;
+  padding:20px 22px;margin:20px 0;font-family:var(--mono);font-size:13.5px;
+  line-height:1.85;white-space:pre;overflow-x:auto;color:var(--tinta-2);
+  max-width:min(100%,760px)}
+.regra b{color:var(--tinta);font-weight:500}
+
+.caso{border-left:3px solid var(--sala);padding:2px 0 2px 18px;margin:22px 0;
+  font-size:15.5px;line-height:1.55}
+.caso .antes{color:var(--alerta)} .caso .depois{color:var(--ok);font-weight:600}
+.caso .quem{font-family:var(--sans);font-weight:600;font-size:15px;display:block;
+  margin-bottom:5px}
+
+/* ───────── pendências ───────── */
+.pend{border-top:1px solid var(--linha);padding:16px 0}
+.pend:last-of-type{border-bottom:1px solid var(--linha)}
+.pend h3{margin:0 0 5px;font-size:16px}
+.pend p{margin:0;font-size:15px;color:var(--tinta-2);line-height:1.5}
+
+footer{margin-top:72px;padding-top:22px;border-top:1px solid var(--linha);
+  font-family:var(--sans);font-size:12.5px;color:var(--tinta-3);
+  display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+
+@media (max-width:640px){
+  body{font-size:16px;padding:0 18px 64px}
+  .convencao > div + div{border-left:0;border-top:1px solid var(--linha)}
+  .num{flex-basis:104px}
+}
+</style>
+
+<div class="faixa">
+
+<header>
+  <p class="orgao">SEDUC-PI · SUPEX · UGERF · GDI</p>
+  <h1>Reordenamento 2027</h1>
+  <p class="linha-fina">A planilha em que a rede estadual decide, escola por escola,
+  quantas turmas cada uma vai abrir em 2027 e quantas salas isso exige.</p>
+
+  <div class="numeros">
+    <div class="num"><b>576</b><span>escolas</span></div>
+    <div class="num"><b>146</b><span>anexos</span></div>
+    <div class="num"><b>224</b><span>municípios</span></div>
+    <div class="num"><b>27</b><span>abas</span></div>
+    <div class="num"><b>3.950</b><span>turmas em 2027</span></div>
+    <div class="num"><b>17</b><span>colunas ★ na V3</span></div>
+  </div>
+</header>
+
+<section class="leitura">
+  <h2>Antes de tudo</h2>
+  <p class="titulo">Só duas coisas existem nesta planilha</p>
+  <p>Toda célula é uma de duas coisas: <strong>uma decisão de gente</strong> ou
+  <strong>um cálculo</strong>. Entender essa divisão é entender o arquivo inteiro — e é o
+  que garante que rodar o script nunca apague o trabalho de ninguém.</p>
+</section>
+
+<div class="convencao">
+  <div class="conv-estrela">
+    <p class="conv-titulo">★ &nbsp;DECIDA AQUI</p>
+    <p>Amarelo. É seu. Você digita ou escolhe no menu. O script nunca escreve por cima —
+    a única exceção é a primeira carga, quando uma ★ numérica vazia recebe a oferta de 2027
+    como ponto de partida.</p>
+  </div>
+  <div>
+    <p class="conv-titulo">Tudo o mais</p>
+    <p>Vem de fórmula ou é reescrito pelo script a cada atualização. Não adianta digitar
+    ali: some na próxima rodada. Se um número calculado estiver errado, o problema está
+    na base que o alimenta.</p>
+  </div>
+</div>
+<p class="nota leitura" style="margin-bottom:60px">Nenhuma coluna ★ é fórmula. As contas
+que dependem do que você preenche ficam em colunas próprias, ao lado, que leem a ★.</p>
+
+<section>
+  <h2>Como a informação anda</h2>
+  <p class="titulo">Quatro camadas, de baixo para cima</p>
+  <div class="fluxo">
+    <div class="etapa e1">
+      <span class="rot">1 · Dados brutos</span>
+      <ul>
+        <li>Turmas <span style="color:var(--tinta-3)">5.810</span></li>
+        <li>Base GDI <span style="color:var(--tinta-3)">1.500</span></li>
+        <li>Matriculas por etapa <span style="color:var(--tinta-3)">3.378</span></li>
+        <li>IDEB · escolas e municípios</li>
+      </ul>
+    </div>
+    <div class="etapa e2">
+      <span class="rot">2 · Oferta 2027 (UETEP)</span>
+      <ul>
+        <li>Oferta Integral <span style="color:var(--tinta-3)">1.352</span></li>
+        <li>Continuidade <span style="color:var(--tinta-3)">2.496</span></li>
+        <li>Subsequente <span style="color:var(--tinta-3)">48</span></li>
+      </ul>
+    </div>
+    <div class="etapa e3">
+      <span class="rot">3 · Bases tratadas</span>
+      <ul>
+        <li>Base Tratada <span style="color:var(--tinta-3)">576</span></li>
+        <li>Base UETEP <span style="color:var(--tinta-3)">497</span></li>
+        <li>Base UEJA <span style="color:var(--tinta-3)">532</span></li>
+        <li>Base Anexos <span style="color:var(--tinta-3)">146</span></li>
+        <li>Fusões · Panorama</li>
+      </ul>
+    </div>
+    <div class="etapa e4">
+      <span class="rot">4 · Onde se decide</span>
+      <ul>
+        <li>Reordenamento 2027 <span style="color:var(--tinta-3)">V1</span></li>
+        <li>Reordenamento V2</li>
+        <li><b style="color:var(--tinta)">Reordenamento V3</b></li>
+      </ul>
+    </div>
+  </div>
+  <p class="nota leitura">O menu <b>📊 GDI / UGERF → ⟳ Atualizar tudo</b> refaz as camadas
+  2 e 3 e reescreve as fórmulas da camada 4. Rode sempre que a aba <code>Turmas</code> mudar.</p>
+</section>
+
+<section class="leitura">
+  <h2>As três versões</h2>
+  <p class="titulo">Por que existem três abas de reordenamento</p>
+</section>
+<div class="rolar">
+  <table>
+    <thead><tr>
+      <th style="width:210px">Aba</th><th class="n">Colunas</th><th>Para que serve</th>
+    </tr></thead>
+    <tbody>
+      <tr><td><code>Reordenamento 2027</code></td><td class="n">38</td>
+        <td>Retrato de como a aba estava antes de tudo. Nada foi recalculado — existe para
+        comparação.</td></tr>
+      <tr><td><code>Reordenamento 2027 V2</code></td><td class="n">42</td>
+        <td>As mesmas colunas da V1, com o que estava quebrado funcionando, mais quatro
+        colunas de referência da oferta de 2027.</td></tr>
+      <tr><td><code>Reordenamento 2027 V3</code></td><td class="n">51</td>
+        <td><strong>É onde se trabalha.</strong> A V2 mais anexos, fusão entre escolas,
+        UETEP, UEJA, IDEB e quantidade de turmas curso a curso.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<section>
+  <h2>A aba de trabalho</h2>
+  <p class="titulo">Reordenamento 2027 V3, coluna por coluna</p>
+  <p class="leitura nota" style="margin-bottom:8px">Os trilhos coloridos são as mesmas
+  faixas que aparecem no cabeçalho da planilha. Em destaque amarelo, as 17 colunas que
+  esperam decisão.</p>
+
+  <div class="bloco b-id">
+    <div class="bloco-cab"><span class="bloco-nome">Identificação</span>
+      <span class="bloco-desc">quem é a escola</span></div>
+    <div class="cols" data-n="2">
+      <div class="linha-col"><span class="letra">A</span><span class="nome">INEP</span></div>
+      <div class="linha-col"><span class="letra">B</span><span class="nome">GRE</span></div>
+      <div class="linha-col"><span class="letra">C</span><span class="nome">Município</span></div>
+      <div class="linha-col"><span class="letra">D</span><span class="nome">Escola</span></div>
+    </div>
+  </div>
+
+  <div class="bloco b-hoje">
+    <div class="bloco-cab"><span class="bloco-nome">Retrato de 2026</span>
+      <span class="bloco-desc">o que a escola tem hoje</span></div>
+    <div class="cols" data-n="2">
+      <div class="linha-col"><span class="letra">E</span><span class="nome">Turmas hoje (2026)</span></div>
+      <div class="linha-col"><span class="letra">F</span><span class="nome">Turmas 2027 (projeção)</span></div>
+      <div class="linha-col"><span class="letra">AB</span><span class="nome">Parciais 2026</span></div>
+      <div class="linha-col estrela"><span class="letra">AC</span><span class="nome">★ Parciais 2026 · justificativa</span></div>
+    </div>
+  </div>
+
+  <div class="bloco b-fund">
+    <div class="bloco-cab"><span class="bloco-nome">Fundamental e 9º ano</span>
+      <span class="bloco-desc">de onde vêm os alunos da 1ª série</span></div>
+    <div class="cols">
+      <div class="linha-col"><span class="letra">G</span><span class="nome">Oferta Fundamental</span></div>
+      <div class="linha-col estrela"><span class="letra">H</span><span class="nome">★ Fundamental 2027 — quais etapas</span></div>
+      <div class="linha-col estrela"><span class="letra">I</span><span class="nome">★ Turmas Fundamental 2027</span></div>
+      <div class="linha-col"><span class="letra">J</span><span class="nome">Fundamental 2027 · total de turmas</span></div>
+      <div class="linha-col"><span class="letra">K</span><span class="nome">9º ano nesta escola</span></div>
+      <div class="linha-col"><span class="letra">L</span><span class="nome">9º ano do município</span></div>
+      <div class="linha-col"><span class="letra">M</span><span class="nome">Demanda total de 1ª série</span></div>
+      <div class="linha-col"><span class="letra">N</span><span class="nome">Ainda faltam no município</span></div>
+      <div class="linha-col"><span class="letra">O</span><span class="nome">IDEB da escola</span></div>
+    </div>
+  </div>
+
+  <div class="bloco b-medio">
+    <div class="bloco-cab"><span class="bloco-nome">Ensino médio</span>
+      <span class="bloco-desc">as três séries e os cursos</span></div>
+    <div class="cols">
+      <div class="linha-col"><span class="letra">P</span><span class="nome">1ª série 2026</span></div>
+      <div class="linha-col estrela"><span class="letra">Q</span><span class="nome">★ 1ª série 2027</span></div>
+      <div class="linha-col"><span class="letra">R</span><span class="nome">Cursos EM 2026</span></div>
+      <div class="linha-col estrela"><span class="letra">S</span><span class="nome">★ Cursos da 1ª série 2027</span></div>
+      <div class="linha-col estrela"><span class="letra">T</span><span class="nome">★ Turmas da 1ª série 2027</span></div>
+      <div class="linha-col"><span class="letra">U</span><span class="nome">1ª série · total pelos cursos</span></div>
+      <div class="linha-col estrela"><span class="letra">V</span><span class="nome">★ Alteração de cursos EMI</span></div>
+      <div class="linha-col estrela"><span class="letra">W</span><span class="nome">★ 2ª série 2027</span></div>
+      <div class="linha-col estrela"><span class="letra">X</span><span class="nome">★ 3ª série 2027</span></div>
+    </div>
+  </div>
+
+  <div class="bloco b-uetep">
+    <div class="bloco-cab"><span class="bloco-nome">Oferta 2027 · UETEP</span>
+      <span class="bloco-desc">o que já foi decidido pela UETEP, para conferência</span></div>
+    <div class="cols">
+      <div class="linha-col"><span class="letra">Y</span><span class="nome">1ª série (turmas)</span></div>
+      <div class="linha-col"><span class="letra">Z</span><span class="nome">Cursos da 1ª série</span></div>
+      <div class="linha-col"><span class="letra">AA</span><span class="nome">2ª / 3ª / subsequente</span></div>
+      <div class="linha-col"><span class="letra">AX</span><span class="nome">Alunos reais de 2ª e 3ª</span></div>
+      <div class="linha-col"><span class="letra">AY</span><span class="nome">★ x Oferta · divergência</span></div>
+    </div>
+  </div>
+
+  <div class="bloco b-fusao">
+    <div class="bloco-cab"><span class="bloco-nome">Fusões</span>
+      <span class="bloco-desc">turmas que cabem juntas</span></div>
+    <div class="cols">
+      <div class="linha-col"><span class="letra">AD</span><span class="nome">Possíveis fusões na própria escola</span></div>
+      <div class="linha-col"><span class="letra">AE</span><span class="nome">Fusão entre escolas do município</span></div>
+      <div class="linha-col estrela"><span class="letra">AF</span><span class="nome">★ Validação da fusão</span></div>
+    </div>
+  </div>
+
+  <div class="bloco b-sala">
+    <div class="bloco-cab"><span class="bloco-nome">Salas</span>
+      <span class="bloco-desc">o fim da linha de todo o cálculo</span></div>
+    <div class="cols" data-n="2">
+      <div class="linha-col"><span class="letra">AG</span><span class="nome">Salas existentes</span></div>
+      <div class="linha-col"><span class="letra">AH</span><span class="nome">Salas necessárias 2027 (calculado)</span></div>
+      <div class="linha-col estrela"><span class="letra">AI</span><span class="nome">★ Salas necessárias 2027</span></div>
+      <div class="linha-col"><span class="letra">AJ</span><span class="nome">Situação da sala</span></div>
+    </div>
+  </div>
+
+  <div class="bloco b-eja">
+    <div class="bloco-cab"><span class="bloco-nome">EJA</span>
+      <span class="bloco-desc">separada entre prédio matriz e fora dele</span></div>
+    <div class="cols" data-n="2">
+      <div class="linha-col"><span class="letra">AK</span><span class="nome">Oferta EJA 2026 (só matriz)</span></div>
+      <div class="linha-col"><span class="letra">AL</span><span class="nome">Matrículas / turmas EJA (só matriz)</span></div>
+      <div class="linha-col"><span class="letra">AM</span><span class="nome">EJA fora do prédio matriz</span></div>
+      <div class="linha-col estrela"><span class="letra">AN</span><span class="nome">★ EJA turmas 2027</span></div>
+    </div>
+  </div>
+
+  <div class="bloco b-anexo">
+    <div class="bloco-cab"><span class="bloco-nome">Anexos</span>
+      <span class="bloco-desc">96 escolas têm anexo, algumas até cinco</span></div>
+    <div class="cols">
+      <div class="linha-col"><span class="letra">AO</span><span class="nome">Anexos desta escola</span></div>
+      <div class="linha-col"><span class="letra">AP</span><span class="nome">Quantidade de anexos</span></div>
+      <div class="linha-col estrela"><span class="letra">AQ</span><span class="nome">★ Decisão sobre o anexo</span></div>
+    </div>
+  </div>
+
+  <div class="bloco b-id">
+    <div class="bloco-cab"><span class="bloco-nome">Registro da decisão</span>
+      <span class="bloco-desc">o que sai daqui para o relatório</span></div>
+    <div class="cols">
+      <div class="linha-col"><span class="letra">AR</span><span class="nome">Resumo 2027</span></div>
+      <div class="linha-col"><span class="letra">AS</span><span class="nome">Escola próxima</span></div>
+      <div class="linha-col estrela"><span class="letra">AT</span><span class="nome">★ Reordenamento 2027</span></div>
+      <div class="linha-col estrela"><span class="letra">AU</span><span class="nome">★ Justificativa</span></div>
+      <div class="linha-col estrela"><span class="letra">AV</span><span class="nome">★ Observação</span></div>
+      <div class="linha-col"><span class="letra">AW</span><span class="nome">✓ Pronto</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="leitura">
+  <h2>Curso e quantidade</h2>
+  <p class="titulo">Ninguém digita nome de curso</p>
+  <p>A coluna <code>S</code> diz <em>quais</em> cursos. A <code>T</code>, ao lado, diz
+  <em>quantas turmas de cada um</em>. O menu já entrega o item pronto com a quantidade
+  embutida — são 264 combinações de curso e 72 de etapa do Fundamental. Clicar de novo
+  acrescenta o próximo item, sem apagar o anterior.</p>
+</section>
+<div class="regra"><b>★ TURMAS 1ª SÉRIE 2027</b>
+  clica  →  Logística (2)          →  "Logística (2)"
+  clica  →  Agropecuária (1)       →  "Logística (2), Agropecuária (1)"
+                                          ↓
+<b>1ª série 2027 · total pelos cursos  →  3</b></div>
+<p class="nota leitura">As duas colunas de total usam <code>REGEXEXTRACT</code> e
+<code>SPLIT</code>, que só existem no Google Sheets. Abertas no Excel, ficam em branco.</p>
+
+<section class="leitura" style="margin-top:60px">
+  <h2>A conta principal</h2>
+  <p class="titulo">Como a necessidade de sala é calculada</p>
+  <p>A regra física é a mesma desde o começo: turma integral ocupa a sala o dia inteiro;
+  manhã e tarde se revezam na mesma sala, então vale o maior dos dois; o noturno regular
+  fica à parte. Sobre essa base, cada turma que você decide a mais ou a menos move a
+  necessidade na mesma medida.</p>
+</section>
+<div class="regra"><b>base</b>  =  integral + máx(manhã, tarde) + noite
+
+<b>salas 2027</b> = base
+           + (1ª decidida  − 1ª da oferta UETEP)
+           + (2ª decidida  − 2ª da oferta UETEP)
+           + (3ª decidida  − 3ª da oferta UETEP)
+           + (Fundamental decidido − Fundamental 2026)
+           + (EJA decidida − EJA 2026)   <span style="color:var(--tinta-3)">← só nas CEJA</span></div>
+
+<div class="caso leitura">
+  <span class="quem">CEJA Leônidas Melo · 12 turmas de EJA · possui 7 salas</span>
+  <span class="antes">antes: 0 salas necessárias → “7 SALAS OCIOSAS”</span><br>
+  <span class="depois">agora: 12 salas necessárias → “CONSTRUIR 5 SALAS”</span>
+</div>
+<p class="nota leitura">Nas <b>31 unidades exclusivamente de EJA</b> não há oferta diurna
+para dividir sala, então a própria EJA define a necessidade. Nas outras 439 escolas com
+EJA nada muda: a EJA noturna usa a sala que o diurno já ocupa e continua fora da conta.</p>
+
+<section class="leitura" style="margin-top:56px">
+  <h2>Duas regras que não são óbvias</h2>
+  <h3>Turma sem matrícula não é turma</h3>
+  <p>Turma declarada com zero matrículas some da oferta e sai de toda contagem —
+  <strong>250 turmas</strong> em toda a base. A coluna <code>Turmas zeradas descartadas</code>,
+  na Base Tratada, registra quantas foram por escola.</p>
+
+  <h3>Semente e decisão</h3>
+  <p>O script precisa saber se um número numa coluna ★ foi ele que plantou ou se alguém
+  digitou. Isso fica gravado na aba oculta <code>★ Sementes (controle)</code>, reescrita a
+  cada rodada.</p>
+</section>
+<div class="rolar leitura">
+  <table style="min-width:0">
+    <thead><tr><th>Estado da célula ★</th><th>O que o script faz</th></tr></thead>
+    <tbody>
+      <tr><td>Vazia</td><td>Recebe a semente</td></tr>
+      <tr><td>Igual à última semente</td><td>Ainda é semente — é refeita</td></tr>
+      <tr><td>Qualquer outro valor</td><td><strong>É decisão de gente — não se toca</strong></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<section style="margin-top:56px">
+  <h2>Abas de apoio</h2>
+  <p class="titulo">Onde cada coisa mora</p>
+</section>
+<div class="rolar">
+  <table>
+    <thead><tr>
+      <th style="width:240px">Aba</th><th class="n">Linhas</th><th>O que traz</th>
+    </tr></thead>
+    <tbody>
+      <tr><td><code>Base Tratada</code></td><td class="n">576</td>
+        <td>Uma linha por prédio matriz. É a fonte de quase tudo que a V3 mostra.</td></tr>
+      <tr><td><code>Base UETEP</code></td><td class="n">497</td>
+        <td>A oferta de 2027 por escola: 1ª série, continuidade, subsequente e salas.</td></tr>
+      <tr><td><code>UETEP · Oferta Integral 2027</code></td><td class="n">1.352</td>
+        <td>1ª série de 2027, escola × curso. 1.454 turmas.</td></tr>
+      <tr><td><code>UETEP · Continuidade 2027</code></td><td class="n">2.496</td>
+        <td>2ª e 3ª série, uma linha por turma. 72.713 alunos reais.</td></tr>
+      <tr><td><code>UETEP · Subsequente 2027</code></td><td class="n">48</td>
+        <td>Oferta subsequente: 58 turmas em 41 escolas.</td></tr>
+      <tr><td><code>Base UEJA</code></td><td class="n">532</td>
+        <td>Onde cada oferta de EJA acontece: matriz, anexo, sala externa, comunidade,
+        sala cedida, privação de liberdade, socioeducativo.</td></tr>
+      <tr><td><code>Base Anexos (1)</code></td><td class="n">146</td>
+        <td>Uma linha por anexo, com a decisão e a justificativa.</td></tr>
+      <tr><td><code>Panorama Municipal</code></td><td class="n">224</td>
+        <td>Demanda de 1ª série por município e o contador de turmas que ainda faltam
+        distribuir.</td></tr>
+      <tr><td><code>Fusão Entre Escolas</code></td><td class="n">138</td>
+        <td>Mesmo curso em escolas do mesmo município, com matrículas dos dois lados,
+        fundamental, 9º ano e IDEB.</td></tr>
+      <tr><td><code>Fusão Turmas</code></td><td class="n">62</td>
+        <td>Fusão turma a turma, com turma de origem e de destino.</td></tr>
+      <tr><td><code>Validações</code></td><td class="n">264</td>
+        <td>As 13 listas dos menus suspensos.</td></tr>
+      <tr><td><code>Cursos</code></td><td class="n">44</td>
+        <td>Lista oficial, com os 33 cursos ofertados em 2027.</td></tr>
+      <tr><td><code>IDEB · escolas e municípios</code></td><td class="n">754</td>
+        <td>Notas de 2025, que alimentam a coluna O e a análise de fusão.</td></tr>
+      <tr><td><code>Turmas</code> · <code>Base GDI</code> · <code>Matriculas por etapa</code></td>
+        <td class="n">10.688</td><td>Dados brutos, do jeito que chegaram.</td></tr>
+      <tr><td><code>★ Backup antes da UETEP</code></td><td class="n">576</td>
+        <td>Valor anterior das seis colunas ★, para desfazer se precisar.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<section class="leitura" style="margin-top:56px">
+  <h2>Em aberto</h2>
+  <p class="titulo">O que ainda depende de gente</p>
+</section>
+<div class="leitura">
+  <div class="pend">
+    <h3>Dois cursos repetidos na base da UETEP</h3>
+    <p>No CETI Governador Freitas Neto, Desenvolvimento de Sistemas aparece como 2+2 turmas
+    e Administração como 1+2. Turnos diferentes ou duplicação?</p>
+  </div>
+  <div class="pend">
+    <h3>ECOESCOLA Thomas a Kempis</h3>
+    <p>Tem 1 turma de 1ª série hoje e não aparece na oferta de 2027. Das 80 escolas sem
+    oferta integral, é a única com ensino médio hoje — as outras 79 são unidades de EJA e
+    fundamental.</p>
+  </div>
+  <div class="pend">
+    <h3>Previsão de alunos é capacidade, não demanda</h3>
+    <p>Na aba de oferta integral esse número é sempre turmas × 40. Serve para dimensionar
+    sala, não para analisar fusão. Os alunos reais só existem na aba de continuidade.</p>
+  </div>
+  <div class="pend">
+    <h3>A capacidade de turma está fixa em 40</h3>
+    <p>Vale para as fusões e para converter 9º ano em 1ª série. Está no topo do script,
+    em <code>MAX_T</code> e <code>CAP_1SERIE</code> — uma linha para mudar, se a regra for
+    outra para algum curso ou etapa.</p>
+  </div>
+</div>
+
+<footer>
+  <span>Reordenamento 2027 · SEDUC-PI</span>
+  <span>Base: Censo e matrícula 2026 · Oferta UETEP 2027 · IDEB 2025</span>
+</footer>
+
+</div>

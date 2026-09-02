@@ -162,8 +162,8 @@ H_IDEB = ["Município", "IDEB Anos Finais (rede municipal)",
 
 H_BT44 = H_BASE_TRATADA[:18] + [
     "Oferta 2027 · 1ª série (alunos previstos)", "Oferta 2027 · 1ª série (turmas)",
-    "Oferta 2027 · 1ª série (cursos)"] + H_BASE_TRATADA[21:28] + [
-    "Salas necessárias 2027 (oferta real)"] + H_BASE_TRATADA[29:] + [
+    "Oferta 2027 · 1ª série (cursos)"] + H_BASE_TRATADA[21:27] + [
+    "Salas necessárias 2027 (oferta real)", "Município", "GRE"] + [
     "Oferta 2027 · 2ª série (turmas)", "Oferta 2027 · 2ª série (alunos)",
     "Oferta 2027 · 3ª série (turmas)", "Oferta 2027 · 3ª série (alunos)",
     "Oferta 2027 · subsequente (turmas)", "Oferta 2027 · subsequente (alunos)",
